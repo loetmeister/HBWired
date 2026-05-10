@@ -49,17 +49,16 @@
 #endif
 
 
-/* sleep macro. Timer for millis() must keep running! Don't sleep too deep... */
-#if defined(__AVR_ATmega328P__) || defined(__AVR_ATmega328__) || defined (__AVR_ATmega328PB__)
-  // "idle" sleep mode (mode 0)
+/* sleep macro. Timer for millis() must keep running! Don't sleep too deep...
+ * SLEEP_MODE_IDLE (mode 0) is available on every AVR and keeps Timer0 (millis),
+ * USART and external interrupts running -- safe for HBW use. */
+#if defined (__AVR__)
   #include <avr/sleep.h>
-  #define POWERSAVE() set_sleep_mode(0); \
+  #define POWERSAVE() set_sleep_mode(SLEEP_MODE_IDLE); \
                       sleep_mode();
 #elif defined (ARDUINO_ARCH_RP2040) || defined(ARDUINO_ARCH_RP2350)
   // #define POWERSAVE() sleep modes seem to be unstable / complicated. Lower sys_clock instead...
   #define POWERSAVE() //sleep modes seem to be unstable / complicated. Lower sys_clock instead...
-  
-//#elif defined (__AVR_ATmega644P__)... // TODO: add others
 #endif
 
 
