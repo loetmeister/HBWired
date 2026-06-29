@@ -906,15 +906,15 @@ void HBWDevice::handleDiscoveryFrame(uint8_t ctrlByte, uint32_t prefix) {
       // We don't use sendFrame() here because Discovery response
       // is just a single byte, not a full frame
       
-      // Small random delay to avoid collisions if multiple devices match
-      // (shouldn't happen with unique addresses, but just in case)
-      delayMicroseconds(random(0, 500));
-      
+      // KEIN random()-Jitter! Das Original-eQ-3-Geraet antwortet schnell und mit
+      // FIXEM Timing (Presence-Byte 0xF8). Ein random(0,500)us-Delay schiebt die
+      // Antwort aus dem engen Listen-Fenster des LGW -> Discover findet den Klon nur
+      // sporadisch (eigenes Gateway, RX=0/RX=1 wechselnd) bis gar nicht (Original-ELV-
+      // LGW). Deterministisch + so frueh wie moeglich antworten:
       digitalWrite(txEnablePin, HIGH);
-      delayMicroseconds(50);  // RS485 transceiver setup time
-      serial->write(0x01);     // Response byte (any value works)
-      serial->flush();         // Wait for transmission complete
-      delayMicroseconds(50);
+      delayMicroseconds(20);   // minimale RS485-Transceiver-Setup-Zeit
+      serial->write(0xF8);     // Presence-Byte wie Original-eQ-3 (Wert egal, nur Busaktivitaet zaehlt)
+      serial->flush();         // wartet, bis das Byte komplett rausgeschoben ist
       digitalWrite(txEnablePin, LOW);
       
       // Update lastReceivedTime to avoid false "bus idle" detection
