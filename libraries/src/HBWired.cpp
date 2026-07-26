@@ -12,6 +12,7 @@
 
 #include "HBWired.h"
 #include "HBW_eeprom.h"
+#include <avr/wdt.h>
 
 
 // bus must be idle 210 + rand(0..100) ms
@@ -464,9 +465,12 @@ void HBWDevice::processEvent(byte const * const frameData, byte frameDataLength,
       if (pendingActions.zeroCommunicationActive) {				// block any messages in this state, except:
       #if defined(_HAS_BOOTLOADER_) && defined(BOOTSTART)
          switch(frameData[0]){
-            case 'u':                                                              // Update (Bootloader starten)
-               goto *bootloader_start;			// Adresse des Bootloaders
-               break;
+            case 'u':   // Update: erst ACK (hs485d/CCU wartet darauf!), dann Watchdog-Reset ->
+                        // der HBW-Booter erkennt WDRF und bleibt im Update-Modus
+               txFrame.targetAddress = senderAddress;
+               sendAck();
+               wdt_enable(WDTO_15MS);
+               while(1);
          }
       #endif
          return;
