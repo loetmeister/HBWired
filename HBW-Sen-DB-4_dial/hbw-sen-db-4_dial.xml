@@ -23,6 +23,13 @@
 	</parameter>
 	<enforce id="CENTRAL_ADDRESS" value="1"/>
 	<enforce id="DIRECT_LINK_DEACTIVATE" value="true"/>
+	<parameter id="OWN_ADDRESS">
+		<logical type="integer" default="1" min="1" max="9999999"/>
+		<physical type="integer" size="4" interface="eeprom">
+			<address index="0x03FC"/>
+		</physical>
+		<conversion type="integer_integer_scale" offset="1120000000" factor="1"/>
+	</parameter>
 </paramset>
 
 <frames>
