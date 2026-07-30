@@ -134,6 +134,8 @@ uint8_t HBWSwitchAdvanced::get(uint8_t* data)
 // separate function to set the actual outputs. Would be usually different in derived class
 bool HBWSwitchAdvanced::setOutput(HBWDevice* device, uint8_t _newstate)
 {
+  if (pin == NOT_A_PIN)  return false;
+  
   if (config->output_unlocked)  //0=LOCKED, 1=UNLOCKED
   {
     if (_newstate == JT_ON || _newstate == JT_OFFDELAY) { // JT_OFFDELAY would turn output ON, if not yet ON
@@ -150,10 +152,8 @@ bool HBWSwitchAdvanced::setOutput(HBWDevice* device, uint8_t _newstate)
 
 void HBWSwitchAdvanced::loop(HBWDevice* device, uint8_t channel)
 {
-  unsigned long now = millis();
-
  //*** state machine begin ***//
-  if (((now - lastStateChangeTime > stateChangeWaitTime) && stateTimerRunning))
+  if (((millis() - lastStateChangeTime > stateChangeWaitTime) && stateTimerRunning))
   {
     stopStateChangeTime();  // time was up, so don't come back into here - new valid timer should be set below
     

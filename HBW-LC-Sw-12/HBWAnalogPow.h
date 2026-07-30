@@ -16,11 +16,12 @@
 
 //#define DEBUG_OUTPUT   // extra debug output on serial/USB
 
-#define SAMPLE_INTERVAL 6  // milli seconds
+#define SAMPLE_INTERVAL 3  // milli seconds
 constexpr uint16_t MIN_UPDATE_INTERVAL = 1000;  // milli seconds
 constexpr uint16_t CENTRE_VALUE = 511;  // sin wave centre
 
 
+// config of one channel, address step 2
 struct hbw_config_analogPow_in {
   uint8_t input_disabled:1;     // +0:0   1=DISABLED (default), 0=ENABLED
   uint8_t notify_disabled:1;   // +0:1   1=DISABLED (default), 0=ENABLED

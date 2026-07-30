@@ -136,6 +136,7 @@ class HBWSwitchAdvanced : public HBWChannel {
     uint8_t pin;
     virtual bool setOutput(HBWDevice* device, uint8_t newstate);
 
+
   protected:
     hbw_config_switch* config;  // channel config, like logging
     uint8_t currentState;
