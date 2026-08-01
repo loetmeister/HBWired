@@ -463,7 +463,15 @@ void HBWDevice::processEvent(byte const * const frameData, byte frameDataLength,
       };
 
       if (pendingActions.zeroCommunicationActive) {				// block any messages in this state, except:
-      #if defined(_HAS_BOOTLOADER_) && defined(BOOTSTART)
+         /* 'u' wird IMMER mitkompiliert. Frueher hing der Handler an
+            #if defined(_HAS_BOOTLOADER_) && defined(BOOTSTART) -- das war fehleranfaellig: Fehlte das
+            Build-Flag (es muss ALLE Uebersetzungseinheiten erreichen, ein #define im Sketch genuegt
+            NICHT) oder war BOOTSTART fuer die MCU nicht definiert (z.B. ATmega644P/1284P), verschwand
+            der Handler LAUTLOS -- das Geraet war nach dem Flashen nie wieder ueber den Bus updatebar
+            und nur noch per ISP erreichbar.
+            Die paar Byte sind es nicht wert: Ohne Booter ist der Handler harmlos, der Watchdog-Reset
+            startet dann einfach die App neu. Und 'u' kommt ohnehin nur nach 'z z' und nur an genau
+            dieses Geraet, also ausschliesslich bei einem gezielt angestossenen Firmware-Update. */
          switch(frameData[0]){
             case 'u':   // Update: erst ACK (hs485d/CCU wartet darauf!), dann Watchdog-Reset ->
                         // der HBW-Booter erkennt WDRF und bleibt im Update-Modus
@@ -472,7 +480,6 @@ void HBWDevice::processEvent(byte const * const frameData, byte frameDataLength,
                wdt_enable(WDTO_15MS);
                while(1);
          }
-      #endif
          return;
       };
       zStartCounter = 0;  // other message, so reset
