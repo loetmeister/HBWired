@@ -199,7 +199,7 @@ class HBWDevice {
 	// the broadcast methods returns sendFrameStatus
 	uint8_t broadcastAnnounce(uint8_t = 0);  // channel 0 is the default
 
-	uint8_t deviceType;
+    uint8_t deviceType;
     uint8_t hardware_version;
     uint16_t firmware_version;
 

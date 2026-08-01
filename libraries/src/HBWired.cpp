@@ -460,7 +460,11 @@ void HBWDevice::processEvent(byte const * const frameData, byte frameDataLength,
       #if defined(_HAS_BOOTLOADER_) && defined(BOOTSTART)
          switch(frameData[0]){
             case 'u':                                                              // Update (Bootloader starten)
-               goto *bootloader_start;			// Adresse des Bootloaders
+               pendingActions.resetSystem = true;  // don't reset immediately, send ACK first
+               // der HBW-Booter erkennt WDRF und bleibt im Update-Modus
+			   // txFrame.targetAddress = senderAddress;
+               // sendAck();
+			   // goto *bootloader_start;			// Adresse des Bootloaders
                break;
          }
       #endif
@@ -870,7 +874,7 @@ void HBWDevice::handleAfterReadConfig() {
 // perform device reset/restart
 void HBWDevice::handleResetSystem() {
   if (pendingActions.resetSystem) {
-   #if defined (Support_ModuleReset)
+   #if defined(Support_ModuleReset) || defined(_HAS_BOOTLOADER_)
     #if defined (Support_WDT)
     RESET_HARDWARE();
     #else

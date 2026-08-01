@@ -10,7 +10,7 @@
 #define _HBW_hardware_h
 
 
-//#define _HAS_BOOTLOADER_    // enable bootlader support of the device. BOOTSTART must be defined as well
+#define _HAS_BOOTLOADER_    // enable bootlader support of the device. BOOTSTART must be defined as well
 
 
 
@@ -66,7 +66,7 @@
 #if defined (__AVR__)
   #include "avr/wdt.h"
   // if watchdog is used & active, just run into infinite loop to force reset
-  #define RESET_HARDWARE() while(1){}
+  #define RESET_HARDWARE() wdt_enable(WDTO_15MS); while(1){}
   #define ENABLE_WATCHDOG() wdt_enable(WDTO_1S)
   #define DISABLE_WATCHDOG() wdt_disable()
   #define RESET_WATCHDOG() wdt_reset()
@@ -74,7 +74,7 @@
   #define RESET_SOFTWARE() resetSoftware()
   #define WATCHDOG_CAUSED_RESET() MCUSR & (1 << WDRF)
 
-#elif defined (ARDUINO_ARCH_RP2040)
+#elif defined (ARDUINO_ARCH_RP2040) || defined(ARDUINO_ARCH_RP2350)
   #include <hardware/watchdog.h>
   #define ENABLE_WATCHDOG() watchdog_enable(1000, 0)
   #define DISABLE_WATCHDOG() watchdog_disable()
