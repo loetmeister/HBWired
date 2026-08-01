@@ -19,10 +19,11 @@
 // - added option to pulse on time for delta T output channel (50% duty cycle)
 // v0.1
 // - using updated HBWDeltaT (with new XML)
+// - added start bootloader (u)
 
 
 #define HARDWARE_VERSION 0x01
-#define FIRMWARE_VERSION 0x000D
+#define FIRMWARE_VERSION 0x000E
 #define HMW_DEVICETYPE 0x99 //device ID (make sure to import hbw-cc-ww-spkts.xml into FHEM)
 
 #define NUMBER_OF_HEATING_CHAN 1   // Schwingungspaketsteuerungsausgangskanal
@@ -34,6 +35,7 @@
 #define ADDRESS_START_CONF_TEMP_CHAN 0x0E  // first EEPROM address for temperature sensors configuration
 #define LINKADDRESSSTART_TEMP 0x100  // pering start_address for any sensor type peers, address_step has to be 6
 #define LINKADDRESSSTART_DELTATX 0x220  // step 7, actor type
+
 
 
 // HB Wired protocol and module

@@ -59,8 +59,8 @@ void HBWSPktS::set(HBWDevice* device, uint8_t length, uint8_t const * const data
     *SPktSValue = newValue / (200 / WELLENPAKETSCHRITTE);
     currentValue = *SPktSValue *(200 / WELLENPAKETSCHRITTE);  // recalculate current level with actual stepping (possible rounding error)
     lastSetTime = millis();
+    stateFlags.byte = 0;    // reset all flags
     if (*SPktSValue > 0) {
-      stateFlags.byte = 0;    // reset all flags
       stateFlags.state.working = true;
     }
   }
@@ -113,6 +113,10 @@ void HBWSPktS::loop(HBWDevice* device, uint8_t channel)
       setFeedback(device, config->logging);
     }
   }
+  else {
+    stateFlags.state.working = false;
+  }
+
   if (config->max_output == 0)    // disabled
   {
     stateFlags.byte = 7;
