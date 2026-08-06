@@ -14,6 +14,14 @@
 #include "HBW_eeprom.h"
 #include <avr/wdt.h>
 
+/* Boot-Marker fuer den HBW-Booter -- Wert UND Adresse (RAMEND-3) MUESSEN mit
+ * HBW-Booter/bootmagic.h uebereinstimmen. NUR der 'u'-Update-Handler unten setzt ihn kurz
+ * vor dem Watchdog-Reset: so bleibt der Booter nach 'u' im Update-Modus, faellt aber bei
+ * '!!'-Reset / App-Restart / Watchdog-Hang sofort in die App (loest die WDRF-Mehrdeutigkeit).
+ * Die App braucht dafuer KEINEN Linker-Flag -- Details in bootmagic.h. */
+#define BOOT_MAGIC_VAL   0xB007DA7AUL
+#define BOOT_MAGIC_CELL  (*(volatile uint32_t*)(RAMEND-3))
+
 
 // bus must be idle 210 + rand(0..100) ms
 #define DIFS_CONSTANT 210
@@ -473,10 +481,11 @@ void HBWDevice::processEvent(byte const * const frameData, byte frameDataLength,
             startet dann einfach die App neu. Und 'u' kommt ohnehin nur nach 'z z' und nur an genau
             dieses Geraet, also ausschliesslich bei einem gezielt angestossenen Firmware-Update. */
          switch(frameData[0]){
-            case 'u':   // Update: erst ACK (hs485d/CCU wartet darauf!), dann Watchdog-Reset ->
-                        // der HBW-Booter erkennt WDRF und bleibt im Update-Modus
+            case 'u':   // Update: erst ACK (hs485d/CCU wartet darauf!), dann Marker + Watchdog-Reset
+                        // -> der HBW-Booter erkennt WDRF + Marker und bleibt im Update-Modus
                txFrame.targetAddress = senderAddress;
                sendAck();
+               BOOT_MAGIC_CELL = BOOT_MAGIC_VAL;   // nur HIER gesetzt: hebt 'u' von '!!'/Restart ab
                wdt_enable(WDTO_15MS);
                while(1);
          }
