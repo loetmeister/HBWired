@@ -26,5 +26,6 @@ Neue "Homematic Wired Homebrew" Hardware in Betrieb nehmen:
 
      Für die CCU gibt es keinen raw-Befehl. Dort setzt das Addon (jp-hb-devices-addon) die Adresse
      über einen OWN_ADDRESS-Parameter im Geräte-XML. Dieser gezielte Schreibzugriff (Write EEPROM,
-     weniger als 10 Byte Nutzdaten) bleibt möglich, wird aber erst nach einem Neustart des Geräts
-     aktiv.
+     weniger als 10 Byte Nutzdaten) bleibt möglich. Das Gerät übernimmt die Adresse, sobald das ACK
+     auf den Schreibzugriff raus ist, und meldet sich anschließend von selbst unter der neuen
+     Adresse - ein Neustart ist nicht nötig.

@@ -504,8 +504,7 @@ void HBWDevice::processEvent(byte const * const frameData, byte frameDataLength,
            if(frameData[1] == 'a' && frameDataLength == 6) {  // 0x61 "a" -> address set
         	 /* Setzt die eigene Busadresse und uebernimmt sie sofort (readAddressFromEEPROM unten).
         	    FHEM: raw-Befehl an das Geraet, z.B. 406142000017 -> Adresse 0x42000017.
-        	    Die CCU nutzt stattdessen den OWN_ADDRESS-Parameter, also 'W' (siehe unten) --
-        	    der wirkt erst nach einem Neustart des Geraets. */
+        	    Die CCU nutzt stattdessen den OWN_ADDRESS-Parameter, also 'W' (siehe unten). */
         	 hbwdebug(F("@: Set Address\n"));
         	 // Avoid "central" addresses (like 0000... 000FF)
         	 if (frameData[2] == 0 && frameData[3] == 0 && frameData[4] == 0) {
@@ -579,6 +578,13 @@ void HBWDevice::processEvent(byte const * const frameData, byte frameDataLength,
                }
                for(byte i = 4; i < frameDataLength; i++){
             	 writeEEPROM(adrStart+i-4, frameData[i], ownAddressWritable);
+               }
+               if(ownAddressWritable) {
+                 /* Adresse nicht hier schon uebernehmen: das ACK auf genau diesen Schreibzugriff
+                    ginge sonst bereits mit der neuen Quelladresse raus und die laufende
+                    Transaktion der Zentrale liefe ins Leere. handleReadAddress() im loop()
+                    uebernimmt sie, sobald das ACK auf dem Bus ist -- kein Neustart noetig. */
+                 pendingActions.readAddress = true;
                }
             };
             break;
@@ -969,6 +975,19 @@ void HBWDevice::handleDiscoveryFrame(uint8_t ctrlByte, uint32_t prefix) {
 }
 
 
+/* eigene Busadresse uebernehmen, nachdem sie per 'W' geschrieben wurde. Erst hier und nicht
+   direkt im Handler, damit das ACK auf den Schreibzugriff noch mit der alten Quelladresse
+   rausgeht. setOwnAddress() setzt 'announced' zurueck, das Geraet meldet sich also von selbst
+   unter der neuen Adresse -- ein Neustart ist nicht noetig. */
+void HBWDevice::handleReadAddress() {
+  if (pendingActions.readAddress) {
+    readAddressFromEEPROM();
+    pendingActions.readAddress = false;
+  }
+  return;
+}
+
+
 // read device and channel config, on init and if triggered by ReadConfig()
 void HBWDevice::handleAfterReadConfig() {
   if (pendingActions.afterReadConfig) {
@@ -1049,6 +1068,7 @@ HBWDevice::HBWDevice(uint8_t _devicetype, uint8_t _hardware_version, uint16_t _f
    configPin = NOT_A_PIN;  //inactive by default
    configButtonStatus = 0;
    pendingActions.zeroCommunicationActive = false;	// will be activated by START_ZERO_COMMUNICATION = 'z' command
+   pendingActions.readAddress = false;	// set after writing OWN_ADDRESS via 'W' command
    zStartCounter = 0;
    #ifdef Support_ModuleReset
    pendingActions.resetSystem = false;
@@ -1126,6 +1146,7 @@ uint8_t HBWDevice::get(uint8_t channel, uint8_t* data) {  // returns length
 void HBWDevice::loop()
 {
   handleResetSystem();
+  handleReadAddress();
   handleAfterReadConfig();
   for (uint8_t loopCurrentChannel = 0; loopCurrentChannel < numChannels; loopCurrentChannel++)
   {
