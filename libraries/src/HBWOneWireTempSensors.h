@@ -12,6 +12,7 @@
 //DS18S20 Gerätecode 0x10
 //DS18B20 Gerätecode 0x28
 //DS1822 Gerätecode 0x22
+//DS1825 Gerätecode 0x3B (Scratchpad wie DS18B20, Auflösung ebenfalls in data[4])
 
 
 #include "HBWired.h"
@@ -74,6 +75,7 @@ class HBWOneWireTemp : public HBWChannel {
     static const uint8_t DS18S20_ID = 0x10;
     static const uint8_t DS1822_ID = 0x22;
     static const uint8_t DS18B20_ID = 0x28;
+    static const uint8_t DS1825_ID = 0x3B;
 };
 
 
