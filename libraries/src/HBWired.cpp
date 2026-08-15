@@ -502,6 +502,8 @@ void HBWDevice::processEvent(byte const * const frameData, byte frameDataLength,
       switch(frameData[0]){
          case '@':             // 0x40                 // HBW-specifics
            if(frameData[1] == 'a' && frameDataLength == 6) {  // 0x61 "a" -> address set
+        	 /* Einziger Weg, die eigene Busadresse zu setzen (privilegierter Schreibzugriff).
+        	    FHEM: raw-Befehl an das Geraet, z.B. 406142000017 -> Adresse 0x42000017 */
         	 hbwdebug(F("@: Set Address\n"));
         	 // Avoid "central" addresses (like 0000... 000FF)
         	 if (frameData[2] == 0 && frameData[3] == 0 && frameData[4] == 0) {
@@ -556,10 +558,14 @@ void HBWDevice::processEvent(byte const * const frameData, byte frameDataLength,
             if(frameDataLength == frameData[3] + 4) {
                hbwdebug(F("C: Write EEPROM\n"));
                adrStart = ((uint16_t)(frameData[1]) << 8) | frameData[2];  // start adress of eeprom
+               /* Die obersten 4 Byte (E2END-3..E2END) halten die eigene Busadresse und sind hier
+                  bewusst NICHT beschreibbar -- writeEEPROM() verwirft sie ohne 'privileged'.
+                  FHEM ("set <device> reset") und die CCU loeschen das EEPROM, indem sie 0xFF ueber
+                  den gesamten Adressraum schreiben. Ohne diese Sperre wuerde dabei auch die Adresse
+                  auf 0xFFFFFFFF fallen, das Geraet meldet sich danach als 0x42FFFFFF.
+                  Geaendert wird die Adresse ausschliesslich per '@a' (siehe oben). */
                for(byte i = 4; i < frameDataLength; i++){
-                 // allow writing OWN_ADDRESS (E2END-3..E2END) via W command
-                 bool privileged = (adrStart+i-4 >= E2END-3);
-            	 writeEEPROM(adrStart+i-4, frameData[i], privileged);
+            	 writeEEPROM(adrStart+i-4, frameData[i]);
                }
             };
             break;
@@ -827,11 +833,7 @@ void HBWDevice::determineSerial(uint8_t* buf, uint32_t address) {
    buf[1] = 'B';
    buf[2] = 'W';
    
-   // subtract base offset to get 7-digit serial number (OWN_ADDRESS range 1120000000-1129999999)
-   if (address >= 1120000000UL)
-      address -= 1120000000UL;
-
-   // append 7 digits
+   // append last 7 digits of own address
    uint8_t* pEnd = &buf[9];
    while (pEnd != &buf[2])
    {

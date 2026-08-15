@@ -11,3 +11,15 @@ Neue "Homematic Wired Homebrew" Hardware in Betrieb nehmen:
      "config" Taster lange drücken, kurz loslassen wenn die status LED blinkt. Dann weitere drei
 	 Sekunden halten, bzw. erst loslassen wenn die status LED wieder dauerhaft leuchtet.
   
+
+  Hinweis zur Geräteadresse:
+     Die Adresse liegt in den obersten 4 EEPROM-Bytes (0x03FC..0x03FF) und ist gegen ein
+     EEPROM-Löschen geschützt: Weder "set <device> reset" in FHEM noch der Reset über den
+     "config" Taster (Punkt 4) noch ein Werksreset der CCU überschreiben sie - Schreibzugriffe
+     per 'W' (Write EEPROM) auf diesen Bereich verwirft die Firmware.
+     Geändert wird die Adresse ausschließlich mit dem raw-Befehl aus Punkt 2 ('@a').
+
+     Deshalb haben die Geräte-XMLs bewusst keinen OWN_ADDRESS-Parameter: FHEM (und ebenso die
+     CCU) schreibt beim Reset 0xFF über den gesamten EEPROM-Bereich, würde die Adresse also
+     mit löschen. Zudem zeigt FHEM den Wert mit einem conversion-offset falsch an
+     (0x42000077 = 1107296375 erscheint mit offset 1120000000 als -12703625).
