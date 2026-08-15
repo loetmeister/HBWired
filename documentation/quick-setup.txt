@@ -13,13 +13,18 @@ Neue "Homematic Wired Homebrew" Hardware in Betrieb nehmen:
   
 
   Hinweis zur Geräteadresse:
-     Die Adresse liegt in den obersten 4 EEPROM-Bytes (0x03FC..0x03FF) und ist gegen ein
-     EEPROM-Löschen geschützt: Weder "set <device> reset" in FHEM noch der Reset über den
-     "config" Taster (Punkt 4) noch ein Werksreset der CCU überschreiben sie - Schreibzugriffe
-     per 'W' (Write EEPROM) auf diesen Bereich verwirft die Firmware.
-     Geändert wird die Adresse ausschließlich mit dem raw-Befehl aus Punkt 2 ('@a').
+     Die Adresse liegt in den obersten 4 EEPROM-Bytes (0x03FC..0x03FF). Ein EEPROM-Löschen lässt
+     sie unangetastet: Weder "set <device> reset" in FHEM noch der Reset über den "config" Taster
+     (Punkt 4) noch ein Werksreset der CCU überschreiben sie. Die Firmware verwirft Schreibzugriffe
+     auf diesen Bereich, sobald sie nach einem Löschvorgang aussehen (Blockschreibzugriff ab 10 Byte
+     Nutzdaten oder 0xFF in den Adressbytes).
 
-     Deshalb haben die Geräte-XMLs bewusst keinen OWN_ADDRESS-Parameter: FHEM (und ebenso die
-     CCU) schreibt beim Reset 0xFF über den gesamten EEPROM-Bereich, würde die Adresse also
-     mit löschen. Zudem zeigt FHEM den Wert mit einem conversion-offset falsch an
-     (0x42000077 = 1107296375 erscheint mit offset 1120000000 als -12703625).
+     In FHEM wird die Adresse mit dem raw-Befehl aus Punkt 2 gesetzt ('@a') und ist sofort aktiv.
+     Die Geräte-XMLs hier haben bewusst keinen OWN_ADDRESS-Parameter: FHEM zeigt ihn mit
+     conversion-offset falsch an (0x42000077 = 1107296375 erscheint mit offset 1120000000
+     als -12703625) und überschreibt ihn beim Reset.
+
+     Für die CCU gibt es keinen raw-Befehl. Dort setzt das Addon (jp-hb-devices-addon) die Adresse
+     über einen OWN_ADDRESS-Parameter im Geräte-XML. Dieser gezielte Schreibzugriff (Write EEPROM,
+     weniger als 10 Byte Nutzdaten) bleibt möglich, wird aber erst nach einem Neustart des Geräts
+     aktiv.

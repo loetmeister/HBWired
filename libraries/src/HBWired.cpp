@@ -502,8 +502,10 @@ void HBWDevice::processEvent(byte const * const frameData, byte frameDataLength,
       switch(frameData[0]){
          case '@':             // 0x40                 // HBW-specifics
            if(frameData[1] == 'a' && frameDataLength == 6) {  // 0x61 "a" -> address set
-        	 /* Einziger Weg, die eigene Busadresse zu setzen (privilegierter Schreibzugriff).
-        	    FHEM: raw-Befehl an das Geraet, z.B. 406142000017 -> Adresse 0x42000017 */
+        	 /* Setzt die eigene Busadresse und uebernimmt sie sofort (readAddressFromEEPROM unten).
+        	    FHEM: raw-Befehl an das Geraet, z.B. 406142000017 -> Adresse 0x42000017.
+        	    Die CCU nutzt stattdessen den OWN_ADDRESS-Parameter, also 'W' (siehe unten) --
+        	    der wirkt erst nach einem Neustart des Geraets. */
         	 hbwdebug(F("@: Set Address\n"));
         	 // Avoid "central" addresses (like 0000... 000FF)
         	 if (frameData[2] == 0 && frameData[3] == 0 && frameData[4] == 0) {
@@ -558,14 +560,25 @@ void HBWDevice::processEvent(byte const * const frameData, byte frameDataLength,
             if(frameDataLength == frameData[3] + 4) {
                hbwdebug(F("C: Write EEPROM\n"));
                adrStart = ((uint16_t)(frameData[1]) << 8) | frameData[2];  // start adress of eeprom
-               /* Die obersten 4 Byte (E2END-3..E2END) halten die eigene Busadresse und sind hier
-                  bewusst NICHT beschreibbar -- writeEEPROM() verwirft sie ohne 'privileged'.
-                  FHEM ("set <device> reset") und die CCU loeschen das EEPROM, indem sie 0xFF ueber
-                  den gesamten Adressraum schreiben. Ohne diese Sperre wuerde dabei auch die Adresse
-                  auf 0xFFFFFFFF fallen, das Geraet meldet sich danach als 0x42FFFFFF.
-                  Geaendert wird die Adresse ausschliesslich per '@a' (siehe oben). */
+               /* Die obersten 4 Byte (E2END-3..E2END) halten die eigene Busadresse. Sie bleiben fuer
+                  einen gezielten Schreibzugriff offen -- das CCU-Addon setzt die Adresse ueber einen
+                  OWN_ADDRESS-Parameter -- werden bei einem EEPROM-Loeschen aber ausgespart:
+                  FHEM ("set <device> reset") und der Werksreset der CCU schreiben 0xFF ueber den
+                  gesamten Adressraum, das Geraet wuerde sich danach als 0x42FFFFFF melden.
+                  Erkannt wird das wie in loetmeister/HBW-Devices (HmwUnits/HmwDevice.cpp): ab 10 Byte
+                  Nutzdaten ist es kein Parameter-, sondern ein Blockschreibzugriff. Zusaetzlich gilt
+                  0xFF in allen Adressbytes als Loeschen -- als Adresse ist das ohnehin ungueltig. */
+               bool ownAddressWritable = false;
+               if(frameData[3] < 10) {
+                 for(byte i = 4; i < frameDataLength; i++){
+                   if(adrStart+i-4 > E2END - 4 && frameData[i] != 0xFF) {
+                     ownAddressWritable = true;
+                     break;
+                   }
+                 }
+               }
                for(byte i = 4; i < frameDataLength; i++){
-            	 writeEEPROM(adrStart+i-4, frameData[i]);
+            	 writeEEPROM(adrStart+i-4, frameData[i], ownAddressWritable);
                }
             };
             break;
