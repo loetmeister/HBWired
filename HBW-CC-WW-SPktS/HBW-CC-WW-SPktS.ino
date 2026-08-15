@@ -129,8 +129,9 @@ ISR(TIMER1_COMPA_vect)
 void setup()
 {
   // variables for all OneWire channels
-  uint32_t g_owLastReadTime = 0;
-  uint8_t g_owCurrentChannel = OW_CHAN_INIT; // always initialize with OW_CHAN_INIT value!
+  // must be static: the channels keep pointers to these, so they have to outlive setup()
+  static uint32_t g_owLastReadTime = 0;
+  static uint8_t g_owCurrentChannel = OW_CHAN_INIT; // always initialize with OW_CHAN_INIT value!
   OneWire* g_ow = new OneWire(ONEWIRE_PIN);
   
   // create channels
