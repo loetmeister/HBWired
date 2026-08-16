@@ -61,6 +61,7 @@ void HBWAnalogPow::loop(HBWDevice* device, uint8_t channel) {
   static uint8_t nextIndex = 0;
   
   uint16_t adcReading = analogRead(pin);
+  lastActionTime = millis();
   if (adcReading < CENTRE_VALUE) {
     adcReading = CENTRE_VALUE - adcReading;
   }
@@ -69,7 +70,6 @@ void HBWAnalogPow::loop(HBWDevice* device, uint8_t channel) {
     adcReading = adcReading - CENTRE_VALUE;
   }
   buffer[nextIndex++] = (uint8_t)(adcReading >>2);//analogRead(pin);
-  lastActionTime = millis();
   
   if (nextIndex >= MAX_SAMPLES) {
     nextIndex = 0;
@@ -82,7 +82,7 @@ void HBWAnalogPow::loop(HBWDevice* device, uint8_t channel) {
     
     currentValue = sum / MAX_SAMPLES;
     // nextActionDelay = UPDATE_INTERVAL;	// "sleep" until next update
-    nextActionDelay = (config->update_interval < 1) ? MIN_UPDATE_INTERVAL : (uint16_t)(config->update_interval * 1000);	// "sleep" until next update
+    nextActionDelay = (config->update_interval < MIN_UPDATE_INTERVAL) ? MIN_UPDATE_INTERVAL : (uint16_t)(config->update_interval * 1000);	// "sleep" until next update
 
 #ifdef DEBUG_OUTPUT
   hbwdebug(F("adc-ch:"));
@@ -91,5 +91,6 @@ void HBWAnalogPow::loop(HBWDevice* device, uint8_t channel) {
   hbwdebug(currentValue);
   hbwdebug(F("\n"));
 #endif
+  // TODO: add notify
   }
 };

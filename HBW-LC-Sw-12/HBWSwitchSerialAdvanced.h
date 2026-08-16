@@ -18,7 +18,7 @@
 
 #include <HBWired.h>
 #include <HBWSwitchAdvanced.h>  // derive from this class
-#include "ShiftRegister74HC595.h" // shift register library, slightly customized
+#include "src/ShiftRegister74HC595.h" // shift register library, slightly customized
 
 // #define DEBUG_OUTPUT   // extra debug output on serial/USB
 

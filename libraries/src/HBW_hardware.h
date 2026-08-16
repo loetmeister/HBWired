@@ -10,21 +10,10 @@
 #define _HBW_hardware_h
 
 
-//#define _HAS_BOOTLOADER_    // enable bootlader support of the device. BOOTSTART must be defined as well
-
 
 
 #ifndef NOT_A_PIN
 #define NOT_A_PIN 0xFF
-#endif
-
-
-/* Start Boot Program section and RAM address start */
-#if defined(__AVR_ATmega328P__) || defined(__AVR_ATmega328__) || defined (__AVR_ATmega328PB__)
-  // Boot Size 2048 words
-  #define BOOTSTART (0x3800)
-#elif defined (__AVR_ATmega32__)
-  #define BOOTSTART (0x3800)
 #endif
 
 
@@ -49,17 +38,16 @@
 #endif
 
 
-/* sleep macro. Timer for millis() must keep running! Don't sleep too deep... */
-#if defined(__AVR_ATmega328P__) || defined(__AVR_ATmega328__) || defined (__AVR_ATmega328PB__)
-  // "idle" sleep mode (mode 0)
+/* sleep macro. Timer for millis() must keep running! Don't sleep too deep...
+ * SLEEP_MODE_IDLE (mode 0) is available on every AVR and keeps Timer0 (millis),
+ * USART and external interrupts running -- safe for HBW use. */
+#if defined (__AVR__)
   #include <avr/sleep.h>
-  #define POWERSAVE() set_sleep_mode(0); \
+  #define POWERSAVE() set_sleep_mode(SLEEP_MODE_IDLE); \
                       sleep_mode();
 #elif defined (ARDUINO_ARCH_RP2040) || defined(ARDUINO_ARCH_RP2350)
   // #define POWERSAVE() sleep modes seem to be unstable / complicated. Lower sys_clock instead...
   #define POWERSAVE() //sleep modes seem to be unstable / complicated. Lower sys_clock instead...
-  
-//#elif defined (__AVR_ATmega644P__)... // TODO: add others
 #endif
 
 
@@ -67,7 +55,7 @@
 #if defined (__AVR__)
   #include "avr/wdt.h"
   // if watchdog is used & active, just run into infinite loop to force reset
-  #define RESET_HARDWARE() while(1){}
+  #define RESET_HARDWARE() wdt_enable(WDTO_30MS); while(1){}
   #define ENABLE_WATCHDOG() wdt_enable(WDTO_1S)
   #define DISABLE_WATCHDOG() wdt_disable()
   #define RESET_WATCHDOG() wdt_reset()
@@ -75,7 +63,7 @@
   #define RESET_SOFTWARE() resetSoftware()
   #define WATCHDOG_CAUSED_RESET() MCUSR & (1 << WDRF)
 
-#elif defined (ARDUINO_ARCH_RP2040)
+#elif defined (ARDUINO_ARCH_RP2040) || defined(ARDUINO_ARCH_RP2350)
   #include <hardware/watchdog.h>
   #define ENABLE_WATCHDOG() watchdog_enable(1000, 0)
   #define DISABLE_WATCHDOG() watchdog_disable()
