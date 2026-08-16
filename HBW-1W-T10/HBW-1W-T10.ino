@@ -95,8 +95,9 @@ void setup()
 {
   // variables for all OneWire channels
   OneWire* g_ow = new OneWire(ONEWIRE_PIN);
-  uint32_t g_owLastReadTime = 0;
-  uint8_t g_owCurrentChannel = OW_CHAN_INIT; // always init with OW_CHAN_INIT! used as trigger/reset in channel loop()
+  // must be static: the channels keep pointers to these, so they have to outlive setup()
+  static uint32_t g_owLastReadTime = 0;
+  static uint8_t g_owCurrentChannel = OW_CHAN_INIT; // always init with OW_CHAN_INIT! used as trigger/reset in channel loop()
 
   // create channels
   for(uint8_t i = 0; i < NUMBER_OF_TEMP_CHAN; i++) {
