@@ -7,12 +7,21 @@
  *
  *  HomeBrew-Wired RS485-Protokoll 
  *
- * Last updated: 04.02.2026
+ * Last updated: 14.08.2026
  */
 
 #include "HBWired.h"
 #include "HBW_eeprom.h"
 
+
+/* Boot-Marker fuer den HBW-Booter -- Wert UND Adresse (RAMEND-3) MUESSEN mit
+ * HBW-Booter/bootmagic.h uebereinstimmen. NUR der 'u'-Update-Handler unten setzt ihn kurz
+ * vor dem Watchdog-Reset: so bleibt der Booter nach 'u' im Update-Modus, faellt aber bei
+ * '!!'-Reset / App-Restart / Watchdog-Hang sofort in die App (loest die WDRF-Mehrdeutigkeit).
+ * Die App braucht dafuer KEINEN Linker-Flag -- Details in bootmagic.h. */
+#define BOOT_MAGIC_VAL   0xB007DA7AUL
+#define BOOT_MAGIC_CELL  (*(volatile uint32_t*)(RAMEND-3))
+// TODO, include bootmagic.h instead of defines
 
 // bus must be idle 210 + rand(0..100) ms
 #define DIFS_CONSTANT 210
@@ -54,7 +63,7 @@ uint32_t HBWDevice::getOwnAddress() {
 }
 
 
-boolean HBWDevice::parseFrame () { // returns true, if event needs to be processed by the module
+boolean HBWDevice::parseFrame() { // returns true, if event needs to be processed by the module
 // Wird aufgerufen, wenn eine komplette Nachricht empfangen wurde
 
   byte seqNumReceived;
@@ -279,8 +288,8 @@ void HBWDevice::receive(){
   // Frame Control Byte might be used before a message is completely received
   static byte rxFrameControlByte;
 
-#define ADDRESSLENGTH 4
-#define ADDRESSLENGTHLONG 9
+  static const uint8_t  ADDRESSLENGTH = 4;
+  static const uint8_t  ADDRESSLENGTHLONG = 9;
   static byte framePointer;
   static byte addressPointer;
   static uint16_t crc16checksum;
@@ -453,30 +462,27 @@ void HBWDevice::processEvent(byte const * const frameData, byte frameDataLength,
           default:
             zStartCounter = 0;  // other broadcast, so reset
          }
-         return;
+         return;  // no response (no ACK) to above frames needed
       };
-
-      if (pendingActions.zeroCommunicationActive) {				// block any messages in this state, except:
-      #if defined(_HAS_BOOTLOADER_) && defined(BOOTSTART)
-         switch(frameData[0]){
-            case 'u':                                                              // Update (Bootloader starten)
-               pendingActions.resetSystem = true;  // don't reset immediately, send ACK first
-               // der HBW-Booter erkennt WDRF und bleibt im Update-Modus
-			   // txFrame.targetAddress = senderAddress;
-               // sendAck();
-			   // goto *bootloader_start;			// Adresse des Bootloaders
-               break;
-         }
-      #endif
-         return;
-      };
-      zStartCounter = 0;  // other message, so reset
 
       txFrame.targetAddress = senderAddress;
       // gibt es was zu verarbeiten -> Ja, die Kommunikationsschicht laesst nur Messages durch,
       // die auch Daten enthalten
 
-      txFrame.controlByte = 0x78;
+      txFrame.controlByte = 0x78;  // sendAck, etc. will overwrite if nessesary
+
+      if (pendingActions.zeroCommunicationActive) {				// block any messages in this state, except:
+         switch(frameData[0]){
+            case 'u':                                                              // Update (Bootloader starten)
+               // der HBW-Booter erkennt WDRF + BOOT_MAGIC_VAL und bleibt im Update-Modus
+               BOOT_MAGIC_CELL = BOOT_MAGIC_VAL;   // nur HIER gesetzt: hebt 'u' von '!!'/Restart ab
+               restartDevice(onlyAck);
+               break;
+         }
+         return;
+      }
+      zStartCounter = 0;  // other message, so reset
+
 
       switch(frameData[0]){
          case '@':             // 0x40                 // HBW-specifics
@@ -496,7 +502,7 @@ void HBWDevice::processEvent(byte const * const frameData, byte frameDataLength,
          case '!':                                                             // reset the Module
             // reset the Module jump after the bootloader
         	// Nur wenn das zweite Zeichen auch ein "!" ist
-            if(frameData[1] == '!') { pendingActions.resetSystem = true; };  // don't reset immediately, send ACK first
+            if(frameData[1] == '!') { restartDevice(onlyAck); };  // don't reset immediately, send ACK first
             break;
          #endif
          case 'A':                                                             // Announce
@@ -871,18 +877,14 @@ void HBWDevice::handleAfterReadConfig() {
 }
 
 
-// perform device reset/restart
-void HBWDevice::handleResetSystem() {
-  if (pendingActions.resetSystem) {
-   #if defined(Support_ModuleReset) || defined(_HAS_BOOTLOADER_)
+// perform device reset/restart. Call with _sendAck = true, when in response to a command (like 'u')
+void HBWDevice::restartDevice(bool _sendAck) {
+    if (_sendAck) sendAck();
     #if defined (Support_WDT)
     RESET_HARDWARE();
     #else
     RESET_SOFTWARE();
     #endif
-   #endif
-  }
-  return;
 }
 
 
@@ -939,9 +941,7 @@ HBWDevice::HBWDevice(uint8_t _devicetype, uint8_t _hardware_version, uint16_t _f
    configButtonStatus = 0;
    pendingActions.zeroCommunicationActive = false;	// will be activated by START_ZERO_COMMUNICATION = 'z' command
    zStartCounter = 0;
-   #ifdef Support_ModuleReset
-   pendingActions.resetSystem = false;
-   #endif
+   // pendingActions.resetSystem = false;
    #ifdef Support_WDT
    ENABLE_WATCHDOG();
    #endif
@@ -1014,7 +1014,6 @@ uint8_t HBWDevice::get(uint8_t channel, uint8_t* data) {  // returns length
 // The loop function is called in an endless loop
 void HBWDevice::loop()
 {
-  handleResetSystem();
   handleAfterReadConfig();
   for (uint8_t loopCurrentChannel = 0; loopCurrentChannel < numChannels; loopCurrentChannel++)
   {

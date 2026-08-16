@@ -161,7 +161,7 @@ class HBWDevice {
 	{
 		uint8_t afterReadConfig : 1;
 		uint8_t announced : 1;
-		uint8_t resetSystem : 1;
+		// uint8_t resetSystem : 1;
 		// uint8_t startBooter : 1;
 		// uint8_t startFirmware : 1;
 		uint8_t zeroCommunicationActive : 1;
@@ -194,7 +194,6 @@ class HBWDevice {
 
     void handleBroadcastAnnounce();
     void handleAfterReadConfig();
-    void handleResetSystem();
 	
 	// the broadcast methods returns sendFrameStatus
 	uint8_t broadcastAnnounce(uint8_t = 0);  // channel 0 is the default
@@ -249,12 +248,11 @@ class HBWDevice {
 	boolean txLEDStatus;
 	boolean rxLEDStatus;
 
-	
-   #if defined(BOOTSTART)
-	void (*bootloader_start) = (void *) BOOTSTART;   // TODO: Add bootloader?
-   #endif
+	void restartDevice(bool _sendAck = 0);
+   #if !defined(Support_WDT)
 	// Arduino Reset via Software function declaration, point to address 0 (reset vector)
 	void (* resetSoftware)(void) = 0;
+   #endif
 	
 	// Senden
 	struct s_txFrame
