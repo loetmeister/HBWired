@@ -19,11 +19,11 @@
 // - added option to pulse on time for delta T output channel (50% duty cycle)
 // v0.1
 // - using updated HBWDeltaT (with new XML)
-// - added start bootloader (u)
+// - added start bootloader (u) command
 
 
 #define HARDWARE_VERSION 0x01
-#define FIRMWARE_VERSION 0x000E
+#define FIRMWARE_VERSION 0x000F
 #define HMW_DEVICETYPE 0x99 //device ID (make sure to import hbw-cc-ww-spkts.xml into FHEM)
 
 #define NUMBER_OF_HEATING_CHAN 1   // Schwingungspaketsteuerungsausgangskanal

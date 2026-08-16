@@ -107,7 +107,7 @@ void HBWSIGNALDuino_bresser7in1::loop(HBWDevice* device, uint8_t channel) {
       // }
 
       // check new storm status, if enabled
-      // TODO: check if windMax or Avg should be used
+      // use "Wind Gust": windMaxMsRaw *0.1 m/s to km/h
       if (config->storm_threshold_level) {
         if ((float)windMaxMsRaw *0.36 >= config->storm_threshold_level *5) {
           if (stormyTriggerCounter > 0)  stormyTriggerCounter--;
