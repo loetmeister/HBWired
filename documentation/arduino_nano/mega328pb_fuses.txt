@@ -39,6 +39,12 @@ to set fuses...
 
   --> efuse: 0xfd may not be accepted. User other tools, e.g. Atmel Studio
   
+  Use with HBW BOOTLOADER:
+  avrdude -c AVRISPmkII -p m328pb -U lfuse:w:0xff:m -U hfuse:w:0xd0:m -U efuse:w:0xfd:m
+to flash... (only boot loader. Firmware needs to be written via the bus)
+  write bootloader and erase chip: (-e is default, when writing flash)
+  avrdude -c AVRISPmkII -p m328pb -U flash:w:hbw_booter_atmega328p.hex:i -v
+
 
 to flash...
   (no boot loader version):
