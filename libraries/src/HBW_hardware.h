@@ -10,21 +10,10 @@
 #define _HBW_hardware_h
 
 
-#define _HAS_BOOTLOADER_    // enable bootlader support of the device. BOOTSTART must be defined as well
-
 
 
 #ifndef NOT_A_PIN
 #define NOT_A_PIN 0xFF
-#endif
-
-
-/* Start Boot Program section and RAM address start */
-#if defined(__AVR_ATmega328P__) || defined(__AVR_ATmega328__) || defined (__AVR_ATmega328PB__)
-  // Boot Size 2048 words
-  #define BOOTSTART (0x3800)
-#elif defined (__AVR_ATmega32__)
-  #define BOOTSTART (0x3800)
 #endif
 
 
