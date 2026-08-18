@@ -162,6 +162,7 @@ class HBWDevice {
 		uint8_t afterReadConfig : 1;
 		uint8_t announced : 1;
 		// uint8_t resetSystem : 1;
+		uint8_t readAddress : 1;   // eigene Busadresse neu aus dem EEPROM lesen (nach 'W' auf E2END-3..E2END)
 		// uint8_t startBooter : 1;
 		// uint8_t startFirmware : 1;
 		uint8_t zeroCommunicationActive : 1;
@@ -194,7 +195,11 @@ class HBWDevice {
 
     void handleBroadcastAnnounce();
     void handleAfterReadConfig();
+    void handleReadAddress();
 	
+	// NEU (OpenCCU-Kompatibilitaet): Discovery-Binary-Search Handler
+	void handleDiscoveryFrame(uint8_t ctrlByte, uint32_t prefix);
+
 	// the broadcast methods returns sendFrameStatus
 	uint8_t broadcastAnnounce(uint8_t = 0);  // channel 0 is the default
 
