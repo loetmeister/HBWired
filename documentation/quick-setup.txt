@@ -20,9 +20,8 @@ Neue "Homematic Wired Homebrew" Hardware in Betrieb nehmen:
      Nutzdaten oder 0xFF in den Adressbytes).
 
      In FHEM wird die Adresse mit dem raw-Befehl aus Punkt 2 gesetzt ('@a') und ist sofort aktiv.
-     Die Geräte-XMLs hier haben bewusst keinen OWN_ADDRESS-Parameter: FHEM zeigt ihn mit
-     conversion-offset falsch an (0x42000077 = 1107296375 erscheint mit offset 1120000000
-     als -12703625) und überschreibt ihn beim Reset.
+     Die Geräte-XMLs hier haben bewusst keinen OWN_ADDRESS-Parameter: FHEM würde ihn beim Reset
+     überschreiben.
 
      Für die CCU gibt es keinen raw-Befehl. Dort setzt das Addon (jp-hb-devices-addon) die Adresse
      über einen OWN_ADDRESS-Parameter im Geräte-XML. Dieser gezielte Schreibzugriff (Write EEPROM,

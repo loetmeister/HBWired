@@ -7,20 +7,11 @@
  *
  *  HomeBrew-Wired RS485-Protokoll 
  *
- * Last updated: 14.08.2026
+ * Last updated: 18.08.2026
  */
 
 #include "HBWired.h"
 #include "HBW_eeprom.h"
-#include <avr/wdt.h>
-
-/* Boot-Marker fuer den HBW-Booter -- Wert UND Adresse (RAMEND-3) MUESSEN mit
- * HBW-Booter/bootmagic.h uebereinstimmen. NUR der 'u'-Update-Handler unten setzt ihn kurz
- * vor dem Watchdog-Reset: so bleibt der Booter nach 'u' im Update-Modus, faellt aber bei
- * '!!'-Reset / App-Restart / Watchdog-Hang sofort in die App (loest die WDRF-Mehrdeutigkeit).
- * Die App braucht dafuer KEINEN Linker-Flag -- Details in bootmagic.h. */
-#define BOOT_MAGIC_VAL   0xB007DA7AUL
-#define BOOT_MAGIC_CELL  (*(volatile uint32_t*)(RAMEND-3))
 
 
 /* Boot-Marker fuer den HBW-Booter -- Wert UND Adresse (RAMEND-3) MUESSEN mit
@@ -352,17 +343,17 @@ void HBWDevice::receive(){
          }else if( bitRead(rxFrameControlByte,3) && 
                    ((rxFrameControlByte & 0x03) != 0x03) &&
                    addressPointer < ADDRESSLENGTHLONG) {
-        	// Adressbyte Sender empfangen wenn CTRL_HAS_SENDER und FRAME_START_LONG
+        	// Adressbyte Sender empfangen wenn CTRL_HAS_SENDER und FRAME_START
         	// NEU (OpenCCU): Bei Discovery-Frames (Bits 1,0 = 11) wird Bit 3
         	// als Teil von validBits verwendet - NICHT als HasSender-Flag!
         	// Siehe FHEM HM485_Protocol.pm: CTRL = (validBits-1) << 3 | 0x03
         	senderAddress <<= 8;
         	senderAddress |= rxByte;
             addressPointer++;
-         }else if(addressPointer != 0xFF) { // Datenl�nge empfangen
+         }else if(addressPointer != 0xFF) { // Datenlänge empfangen
             addressPointer = 0xFF;
             frameDataLength = rxByte;
-            if(frameDataLength > MAX_RX_FRAME_LENGTH) // Maximale Pufferg��e checken.
+            if(frameDataLength > MAX_RX_FRAME_LENGTH) // Maximale Puffergöße checken.
             {
                 frameStatus &= ~FRAME_START;
                 hbwdebug(F("E: MsgTooLong\n"));
@@ -373,7 +364,7 @@ void HBWDevice::receive(){
             if(framePointer == frameDataLength) {  // Daten komplett
                if(crc16checksum == 0) {    //
             	  frameStatus &= ~FRAME_START;
-                  // Framedaten f�r die sp�tere Verarbeitung speichern
+                  // Framedaten für die spätere Verarbeitung speichern
                   // TODO: Braucht man das wirklich?
                   frameControlByte = rxFrameControlByte;
                   frameDataLength -= 2;
@@ -467,7 +458,7 @@ void HBWDevice::processEvent(byte const * const frameData, byte frameDataLength,
             else  zStartCounter++;
             break;
           // case 'K':  // 0x4B Key-Event
-            // broadcast key events sind f�r long_press interressant
+            // broadcast key events sind für long_press interressant
             //  if (frameDataLength == 4) {...}
 			// if (frameData[3] & 0x01) {    // long press broadcast only
               // receiveKeyEvent(senderAddress, frameData[1], frameData[2], frameData[3] >>2, true);
@@ -534,7 +525,7 @@ void HBWDevice::processEvent(byte const * const frameData, byte frameDataLength,
         	processEmessage(frameData);
             break;
          case 'K':                           // 0x4B Key-Event
-         case 0xCB:   // '�':       // Key-Sim-Event TODO: Es gibt da einen theoretischen Unterschied
+         case 0xCB:   // '╦':       // Key-Sim-Event TODO: Es gibt da einen theoretischen Unterschied
             receiveKeyEvent(senderAddress, frameData[1], frameData[2], frameData[3] >>2, frameData[3] & 0x01);
             break;
          case 'R':                                                              // Read EEPROM
@@ -567,10 +558,13 @@ void HBWDevice::processEvent(byte const * const frameData, byte frameDataLength,
                   Nutzdaten ist es kein Parameter-, sondern ein Blockschreibzugriff. Zusaetzlich gilt
                   0xFF in allen Adressbytes als Loeschen -- als Adresse ist das ohnehin ungueltig. */
                bool ownAddressWritable = false;
-               if(frameData[3] < 10) {
+               if(frameData[3] < 10) {  // TODO: possible & useful to check adrStart / valid address range, before going into the loop?
                  for(byte i = 4; i < frameDataLength; i++){
                    if(adrStart+i-4 > E2END - 4 && frameData[i] != 0xFF) {
                      ownAddressWritable = true;
+                    /* ACK mit alter Quelladresse senden. handleReadAddress() im loop() übernimmt
+                    die neue Adresse -- kein Neustart noetig. */
+                     pendingActions.readAddress = true;
                      break;
                    }
                  }
@@ -578,16 +572,9 @@ void HBWDevice::processEvent(byte const * const frameData, byte frameDataLength,
                for(byte i = 4; i < frameDataLength; i++){
             	 writeEEPROM(adrStart+i-4, frameData[i], ownAddressWritable);
                }
-               if(ownAddressWritable) {
-                 /* Adresse nicht hier schon uebernehmen: das ACK auf genau diesen Schreibzugriff
-                    ginge sonst bereits mit der neuen Quelladresse raus und die laufende
-                    Transaktion der Zentrale liefe ins Leere. handleReadAddress() im loop()
-                    uebernimmt sie, sobald das ACK auf dem Bus ist -- kein Neustart noetig. */
-                 pendingActions.readAddress = true;
-               }
             };
             break;
-         /* case 'c':                                                               // Zieladresse l�schen?
+         /* case 'c':                                                               // Zieladresse löschen?
             // TODO: ???
             break;  */
        #ifdef Support_HBWLink_InfoEvent
@@ -611,7 +598,7 @@ void HBWDevice::processEvent(byte const * const frameData, byte frameDataLength,
         	txFrame.dataLength = 10;
         	onlyAck = false;
         	break;
-         /* case 'q':                                                               // Zieladresse hinzuf�gen?
+         /* case 'q':                                                               // Zieladresse hinzufügen?
             // TODO: ???
         	break; */
          case 'v':                                                               // get firmware version
@@ -839,7 +826,7 @@ void HBWDevice::readAddressFromEEPROM(){
       address <<= 8;
       address |= EepromPtr->read(E2END - 3 + i);
    }
-   if(address == 0xFFFFFFFF || address == 0x00000000)
+   if(address == 0xFFFFFFFF || address < 0x000003E8)  // do not allow broadcast or central address (below 1000)
       address = 0x42FFFFFF;
    setOwnAddress(address);
 };
@@ -919,6 +906,7 @@ void HBWDevice::handleBroadcastAnnounce() {
 // Siehe: https://github.com/kc-GitHub/FHEM-HM485/blob/master/FHEM/lib/HM485/HM485d/HM485_Protocol.pm
 // ============================================================================
 void HBWDevice::handleDiscoveryFrame(uint8_t ctrlByte, uint32_t prefix) {
+ #ifdef Support_Discovery
    // Discovery frames haben CTRL bits 1,0 = 11
    // Zusaetzliche Pruefung fuer Sicherheit
    if ((ctrlByte & 0x03) != 0x03) return;
@@ -937,23 +925,18 @@ void HBWDevice::handleDiscoveryFrame(uint8_t ctrlByte, uint32_t prefix) {
       mask = 0xFFFFFFFF << (32 - validBits);
    }
    
-   // Get own address
-   uint32_t myAddress = getOwnAddress();
-   
    // Compare prefix bits with own address
-   if ((myAddress & mask) == (prefix & mask)) {
+   if ((ownAddress & mask) == (prefix & mask)) {
       // Match! Send 1-byte response to indicate presence
       // We don't use sendFrame() here because Discovery response
       // is just a single byte, not a full frame
       
-      // KEIN random()-Jitter! Das Original-eQ-3-Geraet antwortet schnell und mit
-      // FIXEM Timing (Presence-Byte 0xF8). Ein random(0,500)us-Delay schiebt die
-      // Antwort aus dem engen Listen-Fenster des LGW -> Discover findet den Klon nur
-      // sporadisch (eigenes Gateway, RX=0/RX=1 wechselnd) bis gar nicht (Original-ELV-
-      // LGW). Deterministisch + so frueh wie moeglich antworten:
+      // Das Original-eQ-3-Geraet antwortet schnell und mit FIXEM Timing (Presence-Byte 0xF8).
+      // Deterministisch + so frueh wie moeglich antworten:
       digitalWrite(txEnablePin, HIGH);
       delayMicroseconds(20);   // minimale RS485-Transceiver-Setup-Zeit
       serial->write(0xF8);     // Presence-Byte wie Original-eQ-3 (Wert egal, nur Busaktivitaet zaehlt)
+	  // TODO: test with sendFrameByte(0xF8); ? (replace delayMicroseconds & serial->write...)
       serial->flush();         // wartet, bis das Byte komplett rausgeschoben ist
       digitalWrite(txEnablePin, LOW);
       
@@ -971,6 +954,7 @@ void HBWDevice::handleDiscoveryFrame(uint8_t ctrlByte, uint32_t prefix) {
       hbwdebug(F("\n"));
      #endif
    }
+ #endif
 }
 
 
@@ -1065,7 +1049,6 @@ HBWDevice::HBWDevice(uint8_t _devicetype, uint8_t _hardware_version, uint16_t _f
    pendingActions.zeroCommunicationActive = false;	// will be activated by START_ZERO_COMMUNICATION = 'z' command
    pendingActions.readAddress = false;	// set after writing OWN_ADDRESS via 'W' command
    zStartCounter = 0;
-   // pendingActions.resetSystem = false;
    #ifdef Support_WDT
    ENABLE_WATCHDOG();
    #endif
@@ -1145,7 +1128,7 @@ void HBWDevice::loop()
    #ifdef Support_WDT
    RESET_WATCHDOG();
    #endif
-  // Daten empfangen und alles, was zur Kommunikationsschicht geh�rt
+  // Daten empfangen und alles, was zur Kommunikationsschicht gehört
   // processEvent vom Modul wird als Callback aufgerufen
   // Daten empfangen (tut nichts, wenn keine Daten vorhanden)
     receive();
