@@ -161,7 +161,7 @@ class HBWDevice {
 	{
 		uint8_t afterReadConfig : 1;
 		uint8_t announced : 1;
-		uint8_t resetSystem : 1;
+		// uint8_t resetSystem : 1;
 		uint8_t readAddress : 1;   // eigene Busadresse neu aus dem EEPROM lesen (nach 'W' auf E2END-3..E2END)
 		// uint8_t startBooter : 1;
 		// uint8_t startFirmware : 1;
@@ -195,7 +195,6 @@ class HBWDevice {
 
     void handleBroadcastAnnounce();
     void handleAfterReadConfig();
-    void handleResetSystem();
     void handleReadAddress();
 	
 	// NEU (OpenCCU-Kompatibilitaet): Discovery-Binary-Search Handler
@@ -204,7 +203,7 @@ class HBWDevice {
 	// the broadcast methods returns sendFrameStatus
 	uint8_t broadcastAnnounce(uint8_t = 0);  // channel 0 is the default
 
-	uint8_t deviceType;
+    uint8_t deviceType;
     uint8_t hardware_version;
     uint16_t firmware_version;
 
@@ -254,12 +253,11 @@ class HBWDevice {
 	boolean txLEDStatus;
 	boolean rxLEDStatus;
 
-	
-   #if defined(BOOTSTART)
-	void (*bootloader_start) = (void *) BOOTSTART;   // TODO: Add bootloader?
-   #endif
+	void restartDevice(bool _sendAck = 0);
+   #if !defined(Support_WDT)
 	// Arduino Reset via Software function declaration, point to address 0 (reset vector)
 	void (* resetSoftware)(void) = 0;
+   #endif
 	
 	// Senden
 	struct s_txFrame

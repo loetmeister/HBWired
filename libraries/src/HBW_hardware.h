@@ -10,34 +10,10 @@
 #define _HBW_hardware_h
 
 
-//#define _HAS_BOOTLOADER_    // enable bootlader support of the device. BOOTSTART must be defined as well
-
 
 
 #ifndef NOT_A_PIN
 #define NOT_A_PIN 0xFF
-#endif
-
-
-/* Start Boot Program section and RAM address start */
-// HINWEIS: BOOTSTART ist eine WORT-Adresse (Byte-Adresse / 2) und wirkt zugleich als Schalter --
-// der 'u'-Handler in HBWired.cpp haengt an `#if defined(_HAS_BOOTLOADER_) && defined(BOOTSTART)`.
-// Fehlt BOOTSTART fuer eine MCU, faellt der Handler still weg und das Geraet ist nach dem Flashen
-// NICHT mehr per Bus updatebar (nur noch per ISP). Werte = Start der 4-KB-Boot-Section (2048 Words)
-// des HBW-Booters; die BOOTSZ-Fuse dafuer ist chip-abhaengig (32A/328P/PB: BOOTSZ=00, 644P/1284P: 01).
-#if defined(__AVR_ATmega328P__) || defined(__AVR_ATmega328__) || defined (__AVR_ATmega328PB__)
-  // Boot Size 2048 words
-  #define BOOTSTART (0x3800)
-#elif defined (__AVR_ATmega32__) || defined (__AVR_ATmega32A__)
-  // 2048 words -> Byte 0x7000
-  #define BOOTSTART (0x3800)
-#elif defined (__AVR_ATmega644P__)  || defined (__AVR_ATmega644PA__) \
-   || defined (__AVR_ATmega644__)   || defined (__AVR_ATmega644A__)
-  // 2048 words -> Byte 0xF000
-  #define BOOTSTART (0x7800)
-#elif defined (__AVR_ATmega1284P__) || defined (__AVR_ATmega1284__)
-  // 2048 words -> Byte 0x1F000
-  #define BOOTSTART (0xF800)
 #endif
 
 
@@ -79,7 +55,7 @@
 #if defined (__AVR__)
   #include "avr/wdt.h"
   // if watchdog is used & active, just run into infinite loop to force reset
-  #define RESET_HARDWARE() while(1){}
+  #define RESET_HARDWARE() wdt_enable(WDTO_30MS); while(1){}
   #define ENABLE_WATCHDOG() wdt_enable(WDTO_1S)
   #define DISABLE_WATCHDOG() wdt_disable()
   #define RESET_WATCHDOG() wdt_reset()
@@ -87,7 +63,7 @@
   #define RESET_SOFTWARE() resetSoftware()
   #define WATCHDOG_CAUSED_RESET() MCUSR & (1 << WDRF)
 
-#elif defined (ARDUINO_ARCH_RP2040)
+#elif defined (ARDUINO_ARCH_RP2040) || defined(ARDUINO_ARCH_RP2350)
   #include <hardware/watchdog.h>
   #define ENABLE_WATCHDOG() watchdog_enable(1000, 0)
   #define DISABLE_WATCHDOG() watchdog_disable()

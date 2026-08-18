@@ -19,10 +19,11 @@
 // - added option to pulse on time for delta T output channel (50% duty cycle)
 // v0.1
 // - using updated HBWDeltaT (with new XML)
+// - added start bootloader (u) command
 
 
 #define HARDWARE_VERSION 0x01
-#define FIRMWARE_VERSION 0x000D
+#define FIRMWARE_VERSION 0x000F
 #define HMW_DEVICETYPE 0x99 //device ID (make sure to import hbw-cc-ww-spkts.xml into FHEM)
 
 #define NUMBER_OF_HEATING_CHAN 1   // Schwingungspaketsteuerungsausgangskanal
@@ -34,6 +35,7 @@
 #define ADDRESS_START_CONF_TEMP_CHAN 0x0E  // first EEPROM address for temperature sensors configuration
 #define LINKADDRESSSTART_TEMP 0x100  // pering start_address for any sensor type peers, address_step has to be 6
 #define LINKADDRESSSTART_DELTATX 0x220  // step 7, actor type
+
 
 
 // HB Wired protocol and module
@@ -129,8 +131,9 @@ ISR(TIMER1_COMPA_vect)
 void setup()
 {
   // variables for all OneWire channels
-  uint32_t g_owLastReadTime = 0;
-  uint8_t g_owCurrentChannel = OW_CHAN_INIT; // always initialize with OW_CHAN_INIT value!
+  // must be static: the channels keep pointers to these, so they have to outlive setup()
+  static uint32_t g_owLastReadTime = 0;
+  static uint8_t g_owCurrentChannel = OW_CHAN_INIT; // always initialize with OW_CHAN_INIT value!
   OneWire* g_ow = new OneWire(ONEWIRE_PIN);
   
   // create channels
