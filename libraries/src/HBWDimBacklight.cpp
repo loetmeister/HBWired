@@ -10,7 +10,7 @@
 
 
 /* global/static */
-boolean HBWDimBacklight::displayWakeUp = true;  // wakeup on start - if config->startup allows
+bool HBWDimBacklight::displayWakeUp = true;  // wakeup on start - if config->startup allows
 
 
 HBWDimBacklight::HBWDimBacklight(hbw_config_dim_backlight* _config, uint8_t _backlight_pin, uint8_t _photoresistor_pin)
@@ -63,7 +63,7 @@ void HBWDimBacklight::set(HBWDevice* device, uint8_t length, uint8_t const * con
       lastKeyNum = currentKeyNum;
   }
 
-  HBWDimBacklight::displayWakeUp = true;
+  displayWakeUp = true;
   
   if (data[0] > 200)
   {
