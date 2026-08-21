@@ -11,3 +11,20 @@ Neue "Homematic Wired Homebrew" Hardware in Betrieb nehmen:
      "config" Taster lange drücken, kurz loslassen wenn die status LED blinkt. Dann weitere drei
 	 Sekunden halten, bzw. erst loslassen wenn die status LED wieder dauerhaft leuchtet.
   
+
+  Hinweis zur Geräteadresse:
+     Die Adresse liegt in den obersten 4 EEPROM-Bytes (0x03FC..0x03FF). Ein EEPROM-Löschen lässt
+     sie unangetastet: Weder "set <device> reset" in FHEM noch der Reset über den "config" Taster
+     (Punkt 4) noch ein Werksreset der CCU überschreiben sie. Die Firmware verwirft Schreibzugriffe
+     auf diesen Bereich, sobald sie nach einem Löschvorgang aussehen (Blockschreibzugriff ab 10 Byte
+     Nutzdaten oder 0xFF in den Adressbytes).
+
+     In FHEM wird die Adresse mit dem raw-Befehl aus Punkt 2 gesetzt ('@a') und ist sofort aktiv.
+     Die Geräte-XMLs hier haben bewusst keinen OWN_ADDRESS-Parameter: FHEM würde ihn beim Reset
+     überschreiben.
+
+     Für die CCU gibt es keinen raw-Befehl. Dort setzt das Addon (jp-hb-devices-addon) die Adresse
+     über einen OWN_ADDRESS-Parameter im Geräte-XML. Dieser gezielte Schreibzugriff (Write EEPROM,
+     weniger als 10 Byte Nutzdaten) bleibt möglich. Das Gerät übernimmt die Adresse, sobald das ACK
+     auf den Schreibzugriff raus ist, und meldet sich anschließend von selbst unter der neuen
+     Adresse - ein Neustart ist nicht nötig.

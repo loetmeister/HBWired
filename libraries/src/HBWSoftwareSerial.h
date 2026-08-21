@@ -11,6 +11,7 @@ Multi-instance software serial library for Arduino/Wiring
 -- Pin change interrupt macros by Paul Stoffregen (http://www.pjrc.com)
 -- 20MHz processor support by Garrett Mace (http://www.macetech.com)
 -- ATmega1280/2560 support by Brett Hagman (http://www.roguerobotics.com/)
+-- ATmega8/16/32/64/128/8515/8535 support by MCUdude (https://github.com/MCUdude)
 
 This library is free software; you can redistribute it and/or
 modify it under the terms of the GNU Lesser General Public
@@ -35,6 +36,22 @@ http://arduiniana.org.
 
 #include <inttypes.h>
 #include <Stream.h>
+
+
+// Microcontrollers that only make use of INTs
+#if defined(__AVR_ATmega8__)  || defined(__AVR_ATmega16__)  || defined(__AVR_ATmega32__)   || \
+    defined(__AVR_ATmega64__) || defined(__AVR_ATmega128__) || defined(__AVR_ATmega8515__) || \
+    defined(__AVR_ATmega8535__)
+  #define INT_ONLY
+// Microcontrollers that make use of INTs and PCINTs
+#elif defined(__AVR_ATmega162__)  || defined(__AVR_ATmega640__)  || defined(__AVR_ATmega1280__) || \
+      defined(__AVR_ATmega1281__) || defined(__AVR_ATmega2560__) || defined(__AVR_ATmega2561__)
+  #define INT_AND_PCINT
+// Microcontrollers that only make use of PCINTs
+#else
+  #define PCINT_ONLY
+#endif
+
 
 /******************************************************************************
 * Definitions
@@ -112,5 +129,14 @@ public:
   // public only for easy access by interrupt handlers
   static inline void handle_interrupt() __attribute__((__always_inline__));
 };
+
+// Arduino 0012 workaround
+#undef int
+#undef char
+#undef long
+#undef byte
+#undef float
+#undef abs
+#undef round
 
 #endif

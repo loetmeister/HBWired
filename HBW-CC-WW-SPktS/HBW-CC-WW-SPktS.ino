@@ -19,11 +19,14 @@
 // - added option to pulse on time for delta T output channel (50% duty cycle)
 // v0.1
 // - using updated HBWDeltaT (with new XML)
+// v0.2
 // - added start bootloader (u) command
+// - fix global 1wire variables
+// - added discovery
 
 
 #define HARDWARE_VERSION 0x01
-#define FIRMWARE_VERSION 0x000F
+#define FIRMWARE_VERSION 0x0015
 #define HMW_DEVICETYPE 0x99 //device ID (make sure to import hbw-cc-ww-spkts.xml into FHEM)
 
 #define NUMBER_OF_HEATING_CHAN 1   // Schwingungspaketsteuerungsausgangskanal
@@ -74,7 +77,9 @@ HBWChannel* channels[NUMBER_OF_CHAN];  // total number of channels for the devic
 
 // global pointer for OneWire channels
 hbw_config_onewire_temp* tempConfig[NUMBER_OF_TEMP_CHAN]; // pointer for config
-
+// variables for all OneWire channels
+static uint32_t g_owLastReadTime = 0;
+static uint8_t g_owCurrentChannel = OW_CHAN_INIT; // always initialize with OW_CHAN_INIT value! used as trigger/reset in channel loop()
 
 class HBDCCDevice : public HBWDevice
 {
@@ -115,6 +120,7 @@ uint8_t SPktS_outputPin;
 // TODO: put into hpp?
 // TODO: allow more channels? Use arrays SPktS_outputPin[], WellenpaketCnt[], SPktS_currentValue[] ? ... and loop in ISR?
 
+
 ISR(TIMER1_COMPA_vect)
 {
   //timer1 interrupt 50Hz
@@ -130,10 +136,7 @@ ISR(TIMER1_COMPA_vect)
 
 void setup()
 {
-  // variables for all OneWire channels
-  // must be static: the channels keep pointers to these, so they have to outlive setup()
-  static uint32_t g_owLastReadTime = 0;
-  static uint8_t g_owCurrentChannel = OW_CHAN_INIT; // always initialize with OW_CHAN_INIT value!
+  // pointer to the OneWire bus
   OneWire* g_ow = new OneWire(ONEWIRE_PIN);
   
   // create channels

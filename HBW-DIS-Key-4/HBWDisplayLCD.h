@@ -272,7 +272,8 @@ class HBWDisplay : public HBWChannel {
 	// set 0 - off?
 	// set 200 (or anything !=0?) - display on? / wakeup?
   // set 255 "toogle" to switch to next screen
-  
+
+    static bool forceRefresh; // allow other channels to redraw the disaply (after button press)
 
   private:
     hbw_config_display* config;
@@ -280,9 +281,11 @@ class HBWDisplay : public HBWChannel {
     HBWDisplayVChannel** displayVChan;  // pointer to array of linked VChannels (input values)
     HBWDisplayVChannel** displayLine;  // pointer to array of linked VChannels (lines of the display)
     uint32_t displayLastRefresh;    // last time of update
-    boolean initDone;
+    bool initDone;
     
     void parseLine(char* _line, uint8_t length);
+
+    static const uint16_t MIN_REFRESH_DELAY = 650; // minimum pause between force refresh (ms)
 };
 
 #endif /* HBWDISPLAYLCD_H_ */

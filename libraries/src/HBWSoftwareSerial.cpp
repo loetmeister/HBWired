@@ -11,6 +11,8 @@ Multi-instance software serial library for Arduino/Wiring
 -- Pin change interrupt macros by Paul Stoffregen (http://www.pjrc.com)
 -- 20MHz processor support by Garrett Mace (http://www.macetech.com)
 -- ATmega1280/2560 support by Brett Hagman (http://www.roguerobotics.com/)
+-- ATmega8/16/32/64/128/8515/8535 support by MCUdude (https://github.com/MCUdude)
+
 
 This library is free software; you can redistribute it and/or
 modify it under the terms of the GNU Lesser General Public
@@ -221,6 +223,14 @@ uint8_t HBWSoftwareSerial::rx_pin_read()
 // Interrupt handling
 //
 
+// Gets called from attachInterrupt
+#if defined(INT_ONLY) || defined(INT_AND_PCINT)
+static void isr()
+{
+  HBWSoftwareSerial::handle_interrupt();
+}
+#endif
+
 /* static */
 inline void HBWSoftwareSerial::handle_interrupt()
 {
@@ -321,6 +331,7 @@ void HBWSoftwareSerial::begin(long speed)
   // timings are the most critical (deviations stack 8 times)
   _tx_delay = subtract_cap(bit_delay, 15 / 4);
 
+  #if defined(PCINT_ONLY) || defined(INT_AND_PCINT)
   // Only setup rx when we have a valid PCINT for this pin
   if (digitalPinToPCICR((int8_t)_receivePin)) {
     #if GCC_VERSION > 40800
@@ -371,6 +382,63 @@ void HBWSoftwareSerial::begin(long speed)
 
     tunedDelay(_tx_delay); // if we were low this establishes the end
   }
+  #endif //end PCINT_ONLY || INT_AND_PCINT
+
+#if defined(INT_AND_PCINT)
+  else
+#endif
+#if defined(INT_ONLY) || defined(INT_AND_PCINT)
+  {
+    // Direct interrupts
+
+    //INT2 is different on the following the following MCUs, and only support RISING and FALLING
+    #if defined(__AVR_ATmega8515__) || defined(__AVR_ATmega8535__) || defined(__AVR_ATmega16__) \
+    || defined(__AVR_ATmega32__) || defined(__AVR_ATmega162__)
+    if(digitalPinToInterrupt(_receivePin) == 2)
+      attachInterrupt(digitalPinToInterrupt(_receivePin), isr, _inverse_logic ? RISING : FALLING);
+    else
+    #endif
+      attachInterrupt(digitalPinToInterrupt(_receivePin), isr, CHANGE);
+
+    #if GCC_VERSION > 40800
+    // Timings counted from gcc 4.8.2 output. This works up to 115200 on
+    // 16Mhz and 57600 on 8Mhz.
+    //
+    // When the start bit occurs, there are 3 or 4 cycles before the
+    // interrupt flag is set, 4 cycles before the PC is set to the right
+    // interrupt vector address and the old PC is pushed on the stack,
+    // and then 75 cycles of instructions (including the RJMP in the
+    // ISR vector table) until the first delay. After the delay, there
+    // are 17 more cycles until the pin value is read (excluding the
+    // delay in the loop).
+    // We want to have a total delay of 1.5 bit time. Inside the loop,
+    // we already wait for 1 bit time - 23 cycles, so here we wait for
+    // 0.5 bit time - (71 + 18 - 22) cycles.
+    _rx_delay_centering = subtract_cap(bit_delay / 2, (4 + 4 + 75 + 17 - 23) / 4);
+
+    // There are 23 cycles in each loop iteration (excluding the delay)
+    _rx_delay_intrabit = subtract_cap(bit_delay, 23 / 4);
+
+    // There are 37 cycles from the last bit read to the start of
+    // stopbit delay and 11 cycles from the delay until the interrupt
+    // mask is enabled again (which _must_ happen during the stopbit).
+    // This delay aims at 3/4 of a bit time, meaning the end of the
+    // delay will be at 1/4th of the stopbit. This allows some extra
+    // time for ISR cleanup, which makes 115200 baud at 16Mhz work more
+    // reliably
+    _rx_delay_stopbit = subtract_cap(bit_delay * 3 / 4, (37 + 11) / 4);
+    #else // Timings counted from gcc 4.3.2 output
+    // Note that this code is a _lot_ slower, mostly due to bad register
+    // allocation choices of gcc. This works up to 57600 on 16Mhz and
+    // 38400 on 8Mhz.
+    _rx_delay_centering = subtract_cap(bit_delay / 2, (4 + 4 + 97 + 29 - 11) / 4);
+    _rx_delay_intrabit = subtract_cap(bit_delay, 11 / 4);
+    _rx_delay_stopbit = subtract_cap(bit_delay * 3 / 4, (44 + 17) / 4);
+    #endif
+
+    tunedDelay(_tx_delay); // if we were low this establishes the end
+  }
+#endif // INT_ONLY || INT_AND_PCINT
 
 #if _DEBUG
   pinMode(_DEBUG_PIN1, OUTPUT);

@@ -40,7 +40,7 @@ class HBWDimBacklight : public HBWChannel {
     virtual uint8_t get(uint8_t* data);
     virtual void set(HBWDevice*, uint8_t length, uint8_t const * const data);
 
-    static boolean displayWakeUp;   // allow other channels to "wake up" the backlight
+    static bool displayWakeUp;   // allow other channels to "wake up" the backlight
   
   private:
     hbw_config_dim_backlight* config;

@@ -38,10 +38,13 @@
 // v0.90
 // - added output_change_pulse and extended output_change_wait_time - BREAKING change (new XML!)
 // - separated local output loop and keyEvent (re)send
+// v1.0
+// - added start bootloader (u) command
+// - fix global 1wire variables
 
 
 #define HARDWARE_VERSION 0x01
-#define FIRMWARE_VERSION 0x005C
+#define FIRMWARE_VERSION 0x0064
 #define HMW_DEVICETYPE 0x9C  // device ID (make sure to import hbw_cc_dt3_t6.xml into FHEM)
 
 #define NUMBER_OF_TEMP_CHAN 6   // input channels - 1-wire temperature sensors
@@ -86,6 +89,8 @@ HBWChannel* channels[NUMBER_OF_CHAN];  // total number of channels for the devic
 
 // global pointer for OneWire channels
 hbw_config_onewire_temp* tempConfig[NUMBER_OF_TEMP_CHAN]; // pointer for config
+static uint32_t g_owLastReadTime = 0;
+static uint8_t g_owCurrentChannel = OW_CHAN_INIT; // always initialize with OW_CHAN_INIT value! used as trigger/reset in channel loop()
 
 
 class HBDTControlDevice : public HBWDevice {
@@ -122,13 +127,9 @@ void HBDTControlDevice::afterReadConfig()
 HBDTControlDevice* device = NULL;
 
 
-
 void setup()
 {
-  // variables for all OneWire channels
-  // must be static: the channels keep pointers to these, so they have to outlive setup()
-  static uint32_t g_owLastReadTime = 0;
-  static uint8_t g_owCurrentChannel = OW_CHAN_INIT; // always initialize with OW_CHAN_INIT value!
+  // pointer to the OneWire bus
   OneWire* g_ow = new OneWire(ONEWIRE_PIN);
 
   // create channels

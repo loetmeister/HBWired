@@ -15,6 +15,7 @@
 /* global/static */
 byte HBWDisplayVChannel::numTotal = 0;
 byte HBWDisplayLine::numTotal = 0;
+bool HBWDisplay::forceRefresh = false;
 
 /* contructors */
 HBWDisplayVChNum::HBWDisplayVChNum(hbw_config_displayVChNum* _config)
@@ -161,10 +162,11 @@ void HBWDisplayVChBool::set(HBWDevice* device, uint8_t length, uint8_t const * c
   #endif
 };
 
-/* set special input value for a channel, via peering event. */
+
+/* standard public function - set a channel, directly or via peering event. Data array contains new value or all peering details */
 void HBWDisplayLine::set(HBWDevice* device, uint8_t length, uint8_t const * const data)
 {
-  if (length == 3)  // peering has 2 bytes
+  if (length == 3)  // peering has 3 bytes
   {
     uint8_t currentKeyNum = data[1];
     bool sameLastSender = data[2];
@@ -187,10 +189,12 @@ void HBWDisplayLine::set(HBWDevice* device, uint8_t length, uint8_t const * cons
     switch (data[0]) {
       case 0:
         useDefault = false;
-        break;
+        HBWDisplay::forceRefresh = true;
+      break;
       case 200:
         useDefault = true;
-        break;
+        HBWDisplay::forceRefresh = true;
+      break;
       // case 205: // toogle/activate auto cycle? (return default or set line, every other call of getStringFromValue())?
      #ifdef DISPLAY_CUSTOM_LINES_EESTART
       case 220:
@@ -205,6 +209,7 @@ void HBWDisplayLine::set(HBWDevice* device, uint8_t length, uint8_t const * cons
      #endif
       case 255:
         useDefault = !useDefault;
+        HBWDisplay::forceRefresh = true;
       break;
     }
   }
@@ -457,9 +462,10 @@ void HBWDisplay::loop(HBWDevice* device, uint8_t channel)
 {
   static byte currentLine = 0;
   
-  if (millis() - displayLastRefresh >= (uint32_t)(config->refresh_rate +1)*1000)
+  if ( (millis() - displayLastRefresh >= (uint32_t)(config->refresh_rate +1)*1000) || (forceRefresh && (millis() - displayLastRefresh >= MIN_REFRESH_DELAY)) )
   {
     if (currentLine >= config->num_lines +1 || currentLine >= HBWDisplayLine::getNumVChannel()) {
+      forceRefresh = false;
       currentLine = 0;
       displayLastRefresh = millis();  // wait, after all lines have been updated
       return;

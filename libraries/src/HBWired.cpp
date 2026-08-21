@@ -7,7 +7,7 @@
  *
  *  HomeBrew-Wired RS485-Protokoll 
  *
- * Last updated: 14.08.2026
+ * Last updated: 20.08.2026
  */
 
 #include "HBWired.h"
@@ -196,7 +196,7 @@ void HBWDevice::sendFrameSingle() {
       uint32_t address = txFrame.targetAddress;
       for( i = 0; i < 4; i++){      // send target address
     	 tmpByte = address >> 24;
-         sendFrameByte( tmpByte, &crc16checksum);
+         sendFrameByte(tmpByte, &crc16checksum);
          address = address << 8;
       };
 
@@ -206,7 +206,7 @@ void HBWDevice::sendFrameSingle() {
     	  address = ownAddress;
     	  for( i = 0; i < 4; i++){                                           // send sender address
     	    	 tmpByte = address >> 24;
-    	         sendFrameByte( tmpByte, &crc16checksum);
+    	         sendFrameByte(tmpByte, &crc16checksum);
     	         address = address << 8;
     	  }
       };
@@ -340,15 +340,20 @@ void HBWDevice::receive(){
          }else if(addressPointer == ADDRESSLENGTH){   // Controlbyte empfangen
             addressPointer++;
             rxFrameControlByte = rxByte;
-         }else if( bitRead(rxFrameControlByte,3) && addressPointer < ADDRESSLENGTHLONG) {
-        	// Adressbyte Sender empfangen wenn CTRL_HAS_SENDER und FRAME_START_LONG
+         }else if( bitRead(rxFrameControlByte,3) && 
+                   ((rxFrameControlByte & 0x03) != 0x03) &&
+                   addressPointer < ADDRESSLENGTHLONG) {
+        	// Adressbyte Sender empfangen wenn CTRL_HAS_SENDER und FRAME_START
+        	// NEU (OpenCCU): Bei Discovery-Frames (Bits 1,0 = 11) wird Bit 3
+        	// als Teil von validBits verwendet - NICHT als HasSender-Flag!
+        	// Siehe FHEM HM485_Protocol.pm: CTRL = (validBits-1) << 3 | 0x03
         	senderAddress <<= 8;
         	senderAddress |= rxByte;
             addressPointer++;
-         }else if(addressPointer != 0xFF) { // Datenlänge empfangen
+         }else if(addressPointer != 0xFF) { // DatenlÃ¤nge empfangen
             addressPointer = 0xFF;
             frameDataLength = rxByte;
-            if(frameDataLength > MAX_RX_FRAME_LENGTH) // Maximale Puffergöße checken.
+            if(frameDataLength > MAX_RX_FRAME_LENGTH) // Maximale PuffergÃ¶ÃŸe checken.
             {
                 frameStatus &= ~FRAME_START;
                 hbwdebug(F("E: MsgTooLong\n"));
@@ -359,7 +364,7 @@ void HBWDevice::receive(){
             if(framePointer == frameDataLength) {  // Daten komplett
                if(crc16checksum == 0) {    //
             	  frameStatus &= ~FRAME_START;
-                  // Framedaten für die spätere Verarbeitung speichern
+                  // Framedaten fÃ¼r die spÃ¤tere Verarbeitung speichern
                   // TODO: Braucht man das wirklich?
                   frameControlByte = rxFrameControlByte;
                   frameDataLength -= 2;
@@ -453,7 +458,7 @@ void HBWDevice::processEvent(byte const * const frameData, byte frameDataLength,
             else  zStartCounter++;
             break;
           // case 'K':  // 0x4B Key-Event
-            // broadcast key events sind für long_press interressant
+            // broadcast key events sind fÃ¼r long_press interressant
             //  if (frameDataLength == 4) {...}
 			// if (frameData[3] & 0x01) {    // long press broadcast only
               // receiveKeyEvent(senderAddress, frameData[1], frameData[2], frameData[3] >>2, true);
@@ -474,6 +479,7 @@ void HBWDevice::processEvent(byte const * const frameData, byte frameDataLength,
       if (pendingActions.zeroCommunicationActive) {				// block any messages in this state, except:
          switch(frameData[0]){
             case 'u':                                                              // Update (Bootloader starten)
+               hbwdebug(F("C: Start booter\n"));
                // der HBW-Booter erkennt WDRF + BOOT_MAGIC_VAL und bleibt im Update-Modus
                BOOT_MAGIC_CELL = BOOT_MAGIC_VAL;   // nur HIER gesetzt: hebt 'u' von '!!'/Restart ab
                restartDevice(onlyAck);
@@ -487,16 +493,19 @@ void HBWDevice::processEvent(byte const * const frameData, byte frameDataLength,
       switch(frameData[0]){
          case '@':             // 0x40                 // HBW-specifics
            if(frameData[1] == 'a' && frameDataLength == 6) {  // 0x61 "a" -> address set
+        	 /* Setzt die eigene Busadresse in FHEM: raw-Befehl an das Geraet, z.B. 406142000017 -> Adresse 0x42000017
+        	    Die CCU nutzt stattdessen den OWN_ADDRESS-Parameter, also 'W' (siehe unten). */
         	 hbwdebug(F("@: Set Address\n"));
         	 // Avoid "central" addresses (like 0000... 000FF)
         	 if (frameData[2] == 0 && frameData[3] == 0 && frameData[4] == 0) {
         	 	 hbwdebug(F("@: rejected\n"));
         	 	 break;
         	 }
-        	 for(byte i = 0; i < 4; i++)
+        	 for(byte i = 0; i < 4; i++) {
         	   writeEEPROM(E2END - 3 + i, frameData[i + 2], true);
-           };
-           readAddressFromEEPROM();
+        	 }
+           }
+           pendingActions.readAddress = true;
            break;
          #if defined (Support_ModuleReset)
          case '!':                                                             // reset the Module
@@ -517,7 +526,7 @@ void HBWDevice::processEvent(byte const * const frameData, byte frameDataLength,
         	processEmessage(frameData);
             break;
          case 'K':                           // 0x4B Key-Event
-         case 0xCB:   // 'Ë':       // Key-Sim-Event TODO: Es gibt da einen theoretischen Unterschied
+         case 0xCB:   // 'â•¦':       // Key-Sim-Event TODO: Es gibt da einen theoretischen Unterschied
             receiveKeyEvent(senderAddress, frameData[1], frameData[2], frameData[3] >>2, frameData[3] & 0x01);
             break;
          case 'R':                                                              // Read EEPROM
@@ -535,18 +544,38 @@ void HBWDevice::processEvent(byte const * const frameData, byte frameDataLength,
          case 'S':                                                               // GET Level
             processEventGetLevel(frameData[1], frameData[0]);
             txFrame.data[0] = 'i';
-			onlyAck = false;
+            onlyAck = false;
             break;
          case 'W':                                                               // Write EEPROM
             if(frameDataLength == frameData[3] + 4) {
                hbwdebug(F("C: Write EEPROM\n"));
                adrStart = ((uint16_t)(frameData[1]) << 8) | frameData[2];  // start adress of eeprom
-               for(byte i = 4; i < frameDataLength; i++){
-            	 writeEEPROM(adrStart+i-4, frameData[i]);
+               /* Die obersten 4 Byte (E2END-3..E2END) halten die eigene Busadresse. Sie bleiben fuer
+                  einen gezielten Schreibzugriff offen -- das CCU-Addon setzt die Adresse ueber einen
+                  OWN_ADDRESS-Parameter -- werden bei einem EEPROM-Loeschen aber ausgespart:
+                  FHEM ("set <device> reset") und der Werksreset der CCU schreiben 0xFF ueber den
+                  gesamten Adressraum, das Geraet wuerde sich danach als 0x42FFFFFF melden.
+                  Erkannt wird das wie in loetmeister/HBW-Devices (HmwUnits/HmwDevice.cpp): ab 10 Byte
+                  Nutzdaten ist es kein Parameter-, sondern ein Blockschreibzugriff. Zusaetzlich gilt
+                  0xFF in allen Adressbytes als Loeschen -- als Adresse ist das ohnehin ungueltig. */
+               bool ownAddressWritable = false;
+               if(frameData[3] < 10) {
+                 for(byte i = 4; i < frameDataLength; i++) {
+                   if((adrStart+i-4 > E2END - 4) && frameData[i] != 0xFF) {
+                     ownAddressWritable = true;
+                     break;
+                   }
+                 }
                }
+               for(byte i = 4; i < frameDataLength; i++){
+                 writeEEPROM(adrStart+i-4, frameData[i], ownAddressWritable);
+               }
+               /* ACK mit alter Quelladresse senden. handleReadAddress() im loop() Ã¼bernimmt
+               die neue Adresse -- kein Neustart noetig. */
+               pendingActions.readAddress = ownAddressWritable;
             };
             break;
-         /* case 'c':                                                               // Zieladresse löschen?
+         /* case 'c':                                                               // Zieladresse lÃ¶schen?
             // TODO: ???
             break;  */
        #ifdef Support_HBWLink_InfoEvent
@@ -570,7 +599,7 @@ void HBWDevice::processEvent(byte const * const frameData, byte frameDataLength,
         	txFrame.dataLength = 10;
         	onlyAck = false;
         	break;
-         /* case 'q':                                                               // Zieladresse hinzufügen?
+         /* case 'q':                                                               // Zieladresse hinzufÃ¼gen?
             // TODO: ???
         	break; */
          case 'v':                                                               // get firmware version
@@ -798,7 +827,7 @@ void HBWDevice::readAddressFromEEPROM(){
       address <<= 8;
       address |= EepromPtr->read(E2END - 3 + i);
    }
-   if(address == 0xFFFFFFFF)
+   if(address == 0xFFFFFFFF || address < 0x000003E8)  // do not allow broadcast or central addresses (any below 1000)
       address = 0x42FFFFFF;
    setOwnAddress(address);
 };
@@ -861,6 +890,84 @@ void HBWDevice::handleBroadcastAnnounce() {
    if(millis() < 1000) return;
    // store result as bool
    pendingActions.announced = (broadcastAnnounce() == SUCCESS);
+}
+
+
+// ============================================================================
+// NEU (OpenCCU-KompatibilitÃ¤t): Discovery-Binary-Search Handler
+// ============================================================================
+// Die CCU fuehrt einen Binary-Search durch um Geraete zu finden:
+//   1. CCU sendet Frame mit partieller Zieladresse
+//   2. CTRL-Byte: (validBits-1) << 3 | 0x03
+//   3. Geraet prueft ob eigene Adresse mit dem Prefix matched
+//   4. Wenn ja: Geraet antwortet mit 1 Byte
+//   5. CCU verfeinert Suche bis vollstaendige 32-Bit Adresse gefunden
+//
+// Referenz: FHEM HM485_Protocol.pm (kc-GitHub/FHEM-HM485)
+// Siehe: https://github.com/kc-GitHub/FHEM-HM485/blob/master/FHEM/lib/HM485/HM485d/HM485_Protocol.pm
+// ============================================================================
+void HBWDevice::handleDiscoveryFrame(uint8_t ctrlByte, uint32_t prefix) {
+ #ifdef Support_Discovery
+   // Discovery frames haben CTRL bits 1,0 = 11
+   // Zusaetzliche Pruefung fuer Sicherheit
+   if ((ctrlByte & 0x03) != 0x03) return;
+   
+   // Extract validBits (1-32)
+   // CTRL format: (validBits-1) << 3 | 0x03
+   uint8_t validBits = ((ctrlByte >> 3) & 0x1F) + 1;
+   if (validBits > 32) validBits = 32;
+   if (validBits < 1) validBits = 1;
+   
+   // Calculate mask for the valid bits (MSB first)
+   uint32_t mask;
+   if (validBits >= 32) {
+      mask = 0xFFFFFFFF;
+   } else {
+      mask = 0xFFFFFFFF << (32 - validBits);
+   }
+   
+   // Compare prefix bits with own address
+   if ((ownAddress & mask) == (prefix & mask)) {
+      // Match! Send 1-byte response to indicate presence
+      // We don't use sendFrame() here because Discovery response
+      // is just a single byte, not a full frame
+      
+      // Das Original-eQ-3-Geraet antwortet schnell und mit FIXEM Timing (Presence-Byte 0xF8).
+      // Deterministisch + so frueh wie moeglich antworten:
+      digitalWrite(txEnablePin, HIGH);
+      delayMicroseconds(20);   // minimale RS485-Transceiver-Setup-Zeit
+      serial->write(0xF8);     // Presence-Byte wie Original-eQ-3 (Wert egal, nur Busaktivitaet zaehlt)
+      serial->flush();         // wartet, bis das Byte komplett rausgeschoben ist
+      digitalWrite(txEnablePin, LOW);
+      
+      // Update lastReceivedTime to avoid false "bus idle" detection
+      lastReceivedTime = millis();
+      
+     #ifdef HBW_DEBUG
+      hbwdebug(F("DISC MATCH vb="));
+      hbwdebug(validBits);
+      hbwdebug(F(" pfx="));
+      hbwdebughex((prefix >> 24) & 0xFF);
+      hbwdebughex((prefix >> 16) & 0xFF);
+      hbwdebughex((prefix >> 8) & 0xFF);
+      hbwdebughex(prefix & 0xFF);
+      hbwdebug(F("\n"));
+     #endif
+   }
+ #endif
+}
+
+
+/* eigene Busadresse uebernehmen, nachdem sie per 'W' geschrieben wurde. Erst hier und nicht
+   direkt im Handler, damit das ACK auf den Schreibzugriff noch mit der alten Quelladresse
+   rausgeht. setOwnAddress() setzt 'announced' zurueck, das Geraet meldet sich also von selbst
+   unter der neuen Adresse -- ein Neustart ist nicht noetig. */
+void HBWDevice::handleReadAddress() {
+  if (pendingActions.readAddress) {
+    readAddressFromEEPROM();
+    pendingActions.readAddress = false;
+  }
+  return;
 }
 
 
@@ -940,8 +1047,8 @@ HBWDevice::HBWDevice(uint8_t _devicetype, uint8_t _hardware_version, uint16_t _f
    configPin = NOT_A_PIN;  //inactive by default
    configButtonStatus = 0;
    pendingActions.zeroCommunicationActive = false;	// will be activated by START_ZERO_COMMUNICATION = 'z' command
+   pendingActions.readAddress = false;	// set after writing OWN_ADDRESS via 'W' command
    zStartCounter = 0;
-   // pendingActions.resetSystem = false;
    #ifdef Support_WDT
    ENABLE_WATCHDOG();
    #endif
@@ -957,20 +1064,20 @@ void HBWDevice::setConfigPins(uint8_t _configPin, uint8_t _ledPin) {
 	#if (defined(__AVR_ATmega328P__) || defined(__AVR_ATmega328__)) && not (defined(ARDUINO_AVR_ATMEL_ATMEGA328PB_XMINI) || defined(__AVR_ATmega328PB__))
     /* workaround for ATmega328P with analog only A6 and A7 pins, where digitalRead() does not work */
 		if (configPin == A6 || configPin == A7)
-			pinMode(configPin,INPUT);	// no pullup for analog input
+			pinMode(configPin, INPUT);	// no pullup for analog input
 		else
 	#endif
-		pinMode(configPin,INPUT_PULLUP);
+		pinMode(configPin, INPUT_PULLUP);
 	}
 	ledPin = _ledPin;	
-	if(ledPin != NOT_A_PIN) pinMode(ledPin,OUTPUT);
+	if(ledPin != NOT_A_PIN) pinMode(ledPin, OUTPUT);
 };
 
 
 void HBWDevice::setStatusLEDPins(uint8_t _txLedPin, uint8_t _rxLedPin) {
 	txLedPin = _txLedPin;
 	rxLedPin = _rxLedPin;
-	pinMode(txLedPin, OUTPUT);  // pinMode() check for valid pin / NOT_A_PIN
+	pinMode(txLedPin, OUTPUT);  // pinMode() checks for valid pin / NOT_A_PIN
 	pinMode(rxLedPin, OUTPUT);
 };
 
@@ -1014,20 +1121,29 @@ uint8_t HBWDevice::get(uint8_t channel, uint8_t* data) {  // returns length
 // The loop function is called in an endless loop
 void HBWDevice::loop()
 {
+  handleReadAddress();
   handleAfterReadConfig();
   for (uint8_t loopCurrentChannel = 0; loopCurrentChannel < numChannels; loopCurrentChannel++)
   {
    #ifdef Support_WDT
    RESET_WATCHDOG();
    #endif
-  // Daten empfangen und alles, was zur Kommunikationsschicht gehört
+  // Daten empfangen und alles, was zur Kommunikationsschicht gehÃ¶rt
   // processEvent vom Modul wird als Callback aufgerufen
   // Daten empfangen (tut nichts, wenn keine Daten vorhanden)
     receive();
     // Check
     if(frameComplete) {
   	  frameComplete = false;   // only once
-  	  if(targetAddress == ownAddress || targetAddress == 0xFFFFFFFF) {
+  	  // NEU (OpenCCU-Kompatibilitaet): Discovery-Binary-Search Frame?
+  	  // Discovery Frames haben CTRL bits 1,0 = 11 und keine Payload.
+  	  // Wichtig: Wir pruefen NICHT auf ownAddress, da Discovery mit
+  	  // partiellen Adressen arbeitet (Binary Search)!
+  	  if((frameControlByte & 0x03) == 0x03 && frameDataLength == 0) {
+  	    handleDiscoveryFrame(frameControlByte, targetAddress);
+  	  }
+  	  // Normale Frames: Nur an eigene Adresse oder Broadcast
+  	  else if(targetAddress == ownAddress || targetAddress == 0xFFFFFFFF) {
   	    if(parseFrame()) {
   	      processEvent(frameData, frameDataLength, (targetAddress == 0xFFFFFFFF));
   	    };

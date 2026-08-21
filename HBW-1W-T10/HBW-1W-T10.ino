@@ -19,6 +19,9 @@
 // v0.03
 // - validate supported devices (see HBWOneWireTempSensors.h)
 // - optimized conversion and measurement sequence to avoid wrong readings
+// v0.1
+// - added start bootloader (u) command
+// - fix global 1wire variables
 
 
 #define HARDWARE_VERSION 0x01
@@ -56,7 +59,11 @@ struct hbw_config {
 
 HBWChannel* channels[NUMBER_OF_CHAN];  // total number of channels for the device
 
-hbw_config_onewire_temp* tempConfig[NUMBER_OF_TEMP_CHAN]; // global pointer for OneWire channels config
+// global pointer for OneWire channels
+hbw_config_onewire_temp* tempConfig[NUMBER_OF_TEMP_CHAN]; // pointer for config
+// variables for all OneWire channels
+static uint32_t g_owLastReadTime = 0;
+static uint8_t g_owCurrentChannel = OW_CHAN_INIT; // always initialize with OW_CHAN_INIT value! used as trigger/reset in channel loop()
 
 
 class HBTempOWDevice : public HBWDevice {
@@ -93,11 +100,8 @@ HBTempOWDevice* device = NULL;
 
 void setup()
 {
-  // variables for all OneWire channels
+  // pointer to the OneWire bus
   OneWire* g_ow = new OneWire(ONEWIRE_PIN);
-  // must be static: the channels keep pointers to these, so they have to outlive setup()
-  static uint32_t g_owLastReadTime = 0;
-  static uint8_t g_owCurrentChannel = OW_CHAN_INIT; // always init with OW_CHAN_INIT! used as trigger/reset in channel loop()
 
   // create channels
   for(uint8_t i = 0; i < NUMBER_OF_TEMP_CHAN; i++) {
