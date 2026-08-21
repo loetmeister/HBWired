@@ -25,6 +25,9 @@
 // - added idle powersave
 // v0.50
 // - map output directly for valve channel (HBWPids.h) 0-100% (not to windowSize/CYCLE_TIME - which was mapped to 0-100% later)
+// v0.60
+// - added start bootloader (u) command
+// - fix global 1wire variables
 
 
 #define HARDWARE_VERSION 0x02
@@ -74,6 +77,9 @@ HBWChannel* channels[NUMBER_OF_CHAN];  // total number of channels for the devic
 
 // global pointer for OneWire channels
 hbw_config_onewire_temp* tempConfig[NUMBER_OF_TEMP_CHAN]; // pointer for config
+// variables for all OneWire channels
+static uint32_t g_owLastReadTime = 0;
+static uint8_t g_owCurrentChannel = OW_CHAN_INIT; // always initialize with OW_CHAN_INIT value! used as trigger/reset in channel loop()
 
 
 class HBVdDevice : public HBWDevice {
@@ -110,11 +116,8 @@ HBVdDevice* device = NULL;
 
 void setup()
 {
-  // variables for all OneWire channels
+  // pointer to the OneWire bus
   OneWire* g_ow = new OneWire(ONEWIRE_PIN);
-  // must be static: the channels keep pointers to these, so they have to outlive setup()
-  static uint32_t g_owLastReadTime = 0;
-  static uint8_t g_owCurrentChannel = OW_CHAN_INIT; // always init with OW_CHAN_INIT! used as trigger/reset in channel loop()
 
   HBWValve* valves[NUMBER_OF_VD_CHAN];  // pointer to Valve channels, to link in HBWPids channels
 

@@ -22,10 +22,11 @@
 // - whole display will refresh when peered key was pressed (any display line), but not faster than MIN_REFRESH_DELAY
 // v0.40
 // - added start bootloader (u) command
+// - added discovery
 
 
 #define HARDWARE_VERSION 0x01
-#define FIRMWARE_VERSION 0x0028
+#define FIRMWARE_VERSION 0x0029
 #define HMW_DEVICETYPE 0x71 //device ID (make sure to import hbw-dis-key-4.xml into FHEM)
 
 
