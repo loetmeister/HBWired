@@ -522,8 +522,9 @@ void HBWDevice::processEvent(byte const * const frameData, byte frameDataLength,
         	readConfig();    // also calls back to device
             break;
          case 'E':                           // see separate docs
-        	onlyAck = false;
         	processEmessage(frameData);
+        	// blocknum == 0 liefert keine e-Antwort, dann nur ACK
+        	onlyAck = (txFrame.dataLength == 0);
             break;
          case 'K':                           // 0x4B Key-Event
          case 0xCB:   // '╦':       // Key-Sim-Event TODO: Es gibt da einen theoretischen Unterschied
@@ -677,6 +678,21 @@ void HBWDevice::processEmessage(uint8_t const * const frameData) {
    
    uint8_t blocksize = frameData[3];
    uint8_t blocknum  = frameData[4];
+
+   /* blocknum ist die ANZAHL der Bloecke, nicht der Index des letzten.
+      Am Original mitgeschnitten (eQ-3 HMW-IO-12-SW14-DR, MEQ0229855,
+      21.08.2026, ueber ein HMW-LGW): "E 00 00 04 01" liefert die Bitmap
+      0x01 -- es wird also nur Block 0 gemeldet, obwohl Block 1 (EEPROM
+      0x04..0x07) belegt ist. Bei blocknum = 0 antwortet das Original gar
+      nicht, sondern schickt nur ein ACK.
+      Gemessene Antwortlaengen (blocksize/blocknum -> Bytes):
+        4/1 -> 5   4/7 -> 5   4/8 -> 5   8/15 -> 6
+        4/63 -> 12   4/64 -> 12   1/255 -> 36
+      Die Laengenformel unten trifft das bereits. */
+   if(blocknum == 0) {
+     txFrame.dataLength = 0;
+     return;
+   };
    
    // length of response
    txFrame.dataLength = 4 + blocknum / 8;
@@ -693,8 +709,12 @@ void HBWDevice::processEmessage(uint8_t const * const frameData) {
    txFrame.data[2]  = frameData[2];
    txFrame.data[3]  = frameData[3];
    
-   // determine whether blocks are used
-   for(int block = 0; block <= blocknum; block++) {
+   /* determine whether blocks are used
+      "< blocknum", nicht "<= blocknum": sonst wird ein Block zu viel
+      geprueft, und bei einer durch 8 teilbaren Blockzahl schreibt bitSet()
+      hinter das Ende der Bitmap -- z.B. blocknum = 8 ergibt dataLength 5,
+      aber data[4 + 8/8] waere data[5]. */
+   for(int block = 0; block < blocknum; block++) {
       // check this memory block
       for(int byteIdx = 0; byteIdx < blocksize; byteIdx++) {
          if(EepromPtr->read(block * blocksize + byteIdx) != 0xFF) {
