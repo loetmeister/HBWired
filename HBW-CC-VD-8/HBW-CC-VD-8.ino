@@ -37,7 +37,6 @@
 #define NUMBER_OF_PID_CHAN 8   // output channels - PID regulator
 #define NUMBER_OF_VD_CHAN NUMBER_OF_PID_CHAN   // output channels - valve actuator (has to be same amount as PIDs)
 #define NUMBER_OF_TEMP_CHAN 8  // input channels - 1-wire temperature sensors
-#define ADDRESS_START_CONF_TEMP_CHAN 0x7  // first EEPROM address for temperature sensors configuration
 
 #define NUM_LINKS_PID 20    // address step 7
 #define LINKADDRESSSTART_PID 0x140   // ends @0x1CB
@@ -108,7 +107,8 @@ class HBVdDevice : public HBWDevice {
 void HBVdDevice::afterReadConfig() {
   if (hbwconfig.logging_time == 0xFF) hbwconfig.logging_time = 50;
 
-  HBWOneWireTemp::sensorSearch(d_ow, tempSensorconfig, (uint8_t) NUMBER_OF_TEMP_CHAN, (uint8_t) ADDRESS_START_CONF_TEMP_CHAN);
+  static const uint8_t ADDRESS_START_CONF_TEMP_CHAN = offsetof(hbw_config, TempOWCfg) +1;  // first EEPROM address for temperature sensors configuration
+  HBWOneWireTemp::sensorSearch(d_ow, tempSensorconfig, (uint8_t) NUMBER_OF_TEMP_CHAN, ADDRESS_START_CONF_TEMP_CHAN);
 };
 
 HBVdDevice* device = NULL;

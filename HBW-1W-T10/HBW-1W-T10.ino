@@ -33,7 +33,6 @@
 #define HMW_DEVICETYPE 0x81 //device ID (make sure to import hbw_1w_t10_v1.xml into FHEM)
 
 #define NUMBER_OF_TEMP_CHAN 10   // input channels - 1-wire temperature sensors
-#define ADDRESS_START_CONF_TEMP_CHAN 0x7  // first EEPROM address for temperature sensors configuration
 //#define NUM_LINKS_TEMP 30    // requires Support_HBWLink_InfoEvent in HBWired.h
 #define LINKADDRESSSTART_TEMP 0xE6   // step 6
 
@@ -59,13 +58,6 @@ struct hbw_config {
   uint8_t              :7;   // 0x06:1-7
   hbw_config_onewire_temp TempOWCfg[NUMBER_OF_TEMP_CHAN]; // 0x07 - 0x.. (address step 14)
 } hbwconfig;
-
-/* sensorSearch() writes the sensor IDs into the EEPROM using ADDRESS_START_CONF_TEMP_CHAN.
- * That constant must match where TempOWCfg actually sits in the config struct - the struct
- * is read from EEPROM 0x01, so struct offset 6 equals EEPROM address 0x07. Adding a field
- * in front of TempOWCfg would silently shift the channel config. */
-static_assert(offsetof(hbw_config, TempOWCfg) +1 == ADDRESS_START_CONF_TEMP_CHAN,
-              "ADDRESS_START_CONF_TEMP_CHAN does not match the config struct layout");
 
 
 HBWChannel* channels[NUMBER_OF_CHAN];  // total number of channels for the device
@@ -102,7 +94,12 @@ class HBTempOWDevice : public HBWDevice {
 // device specific defaults
 void HBTempOWDevice::afterReadConfig()
 {
-  HBWOneWireTemp::sensorSearch(d_ow, tempSensorconfig, (uint8_t) NUMBER_OF_TEMP_CHAN, (uint8_t) ADDRESS_START_CONF_TEMP_CHAN);
+  /* sensorSearch() writes the sensor IDs into the EEPROM using ADDRESS_START_CONF_TEMP_CHAN.
+   * That constant must match where TempOWCfg actually sits in the config struct - the struct
+   * is read from EEPROM 0x01, so struct offset 6 equals EEPROM address 0x07. Adding a field
+   * in front of TempOWCfg would silently shift the channel config. */
+  static const uint8_t ADDRESS_START_CONF_TEMP_CHAN = offsetof(hbw_config, TempOWCfg) +1;  // first EEPROM address for temperature sensors configuration
+  HBWOneWireTemp::sensorSearch(d_ow, tempSensorconfig, (uint8_t) NUMBER_OF_TEMP_CHAN, ADDRESS_START_CONF_TEMP_CHAN);
 };
 
 HBTempOWDevice* device = NULL;
