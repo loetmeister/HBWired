@@ -21,7 +21,7 @@
  * Die App braucht dafuer KEINEN Linker-Flag -- Details in bootmagic.h. */
 #define BOOT_MAGIC_VAL   0xB007DA7AUL
 #define BOOT_MAGIC_CELL  (*(volatile uint32_t*)(RAMEND-3))
-// TODO, include bootmagic.h instead of defines
+
 
 // bus must be idle 210 + rand(0..100) ms
 #define DIFS_CONSTANT 210
@@ -522,9 +522,8 @@ void HBWDevice::processEvent(byte const * const frameData, byte frameDataLength,
         	readConfig();    // also calls back to device
             break;
          case 'E':                           // see separate docs
-        	processEmessage(frameData);
-        	// blocknum == 0 liefert keine e-Antwort, dann nur ACK
-        	onlyAck = (txFrame.dataLength == 0);
+            // blocknum == 0 liefert keine e-Antwort, dann nur ACK
+            onlyAck = processEmessage(frameData);
             break;
          case 'K':                           // 0x4B Key-Event
          case 0xCB:   // '╦':       // Key-Sim-Event TODO: Es gibt da einen theoretischen Unterschied
@@ -673,7 +672,7 @@ void HBWDevice::processEventSetLock(uint8_t channel, boolean inhibit){
 };
 
 
-void HBWDevice::processEmessage(uint8_t const * const frameData) {
+bool HBWDevice::processEmessage(uint8_t const * const frameData) {
    // process E-Message
    
    uint8_t blocksize = frameData[3];
@@ -690,8 +689,8 @@ void HBWDevice::processEmessage(uint8_t const * const frameData) {
         4/63 -> 12   4/64 -> 12   1/255 -> 36
       Die Laengenformel unten trifft das bereits. */
    if(blocknum == 0) {
-     txFrame.dataLength = 0;
-     return;
+   // bei blocknum == 0 keine e-Antwort, nur ACK
+     return true;
    };
    
    // length of response
@@ -723,6 +722,7 @@ void HBWDevice::processEmessage(uint8_t const * const frameData) {
          }
       }
    };
+   return false;
 };
 
 
