@@ -8,6 +8,7 @@ Unterstützte 1-Wire® Temperatursensoren:
 DS18S20 Gerätecode 0x10
 DS18B20 Gerätecode 0x28
 DS1822  Gerätecode 0x22
+DS1825  Gerätecode 0x3B
 
 
 Damit FHEM das Homebrew-Device richtig erkennt, muss die hbw_1w_t10_v1.xml Datei in den Ordner FHEM/lib/HM485/Devices/xml kopiert werden (Das Device gibt sich als HW-Typ 0x81 aus).

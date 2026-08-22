@@ -7,9 +7,14 @@ Basis ist ein Arduino NANO mit RS485-Interface.
 
 Direktes Peering ist für die Temperatursensoren mit den PID Regler möglich (HBWLinkInfoEventActuator & HBWLinkInfoEventSensor).
 
-
 Die Ventile können wie ein Dimmer von 0-100% gesetzt werden.
 Die Steuerung für die thermischen Ventile erfolgt per "time proportioning control" eine Art extrem langsames PWM. Bei über 50% schaltet das Ventil zuerst ein, unter 50% zuerst aus. Nach einer Änderung wird die erste Ein- oder Auszeit einmal halbiert.
+
+Unterstützte 1-Wire® Temperatursensoren:
+DS18S20 Gerätecode 0x10
+DS18B20 Gerätecode 0x28
+DS1822  Gerätecode 0x22
+DS1825  Gerätecode 0x3B
 
 Damit FHEM das Homebrew-Device richtig erkennt, muss die HBW-CC-VD-8.xml Datei in den Ordner FHEM/lib/HM485/Devices/xml kopiert werden (Das Device gibt sich als HW-Typ 0x97 aus).
 

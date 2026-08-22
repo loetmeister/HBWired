@@ -377,6 +377,7 @@
 					<option id="DS18B20"/>
 					<option id="DS18S20"/>
 					<option id="DS1822"/>
+					<option id="DS1825"/>
 					<option id="REMOVE_SENSOR"/>
 				</logical>
 				<physical size="1.0" type="integer" interface="eeprom">
@@ -387,7 +388,8 @@
 					<value_map to_device="true" from_device="true" parameter_value="1" device_value="0x28"/>
 					<value_map to_device="true" from_device="true" parameter_value="2" device_value="0x10"/>
 					<value_map to_device="true" from_device="true" parameter_value="3" device_value="0x22"/>
-					<value_map to_device="true" from_device="false" parameter_value="4" device_value="0xFF"/>
+					<value_map to_device="true" from_device="true" parameter_value="4" device_value="0x3B"/>
+					<value_map to_device="true" from_device="false" parameter_value="5" device_value="0xFF"/>
 				</conversion>
 			</parameter>
 		</paramset>

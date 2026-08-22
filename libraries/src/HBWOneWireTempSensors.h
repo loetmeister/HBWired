@@ -12,7 +12,7 @@
 //DS18S20 Gerätecode 0x10
 //DS18B20 Gerätecode 0x28
 //DS1822 Gerätecode 0x22
-//DS1825 Gerätecode 0x3B (Scratchpad wie DS18B20, Auflösung ebenfalls in data[4])
+//DS1825 Gerätecode 0x3B (Scratchpad wie DS18B20)
 
 
 #include "HBWired.h"
