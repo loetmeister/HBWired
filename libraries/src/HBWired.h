@@ -233,6 +233,7 @@ class HBWDevice {
 //  current minimum idle time
 //  will be initialized in constructor
     uint16_t minIdleTime;
+	uint16_t newMinIdleTime();
 	void receive();  // wird zyklisch aufgerufen
 	boolean parseFrame();
 	void sendFrameSingle();
@@ -244,7 +245,7 @@ class HBWDevice {
 
 	void processEventGetLevel(uint8_t channel, uint8_t command);
 	void processEventSetLock(uint8_t channel, boolean inhibit);
-	void processEmessage(uint8_t const * const frameData);
+	bool processEmessage(uint8_t const * const frameData);
 	
 	uint8_t zStartCounter;  // count zero communication messages
 	void factoryReset();

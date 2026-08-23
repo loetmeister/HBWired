@@ -53,7 +53,7 @@ uint8_t HBWDevice::configButtonStatus;
 void HBWDevice::setOwnAddress(uint32_t address) {
   ownAddress = address;
   randomSeed(ownAddress);
-  minIdleTime = random(DIFS_CONSTANT, DIFS_CONSTANT+DIFS_RANDOM);
+  minIdleTime = newMinIdleTime();
   pendingActions.announced = false;	// (re)send broadcast announce message
 }
 
@@ -117,7 +117,7 @@ HBWDevice::sendFrameStatus HBWDevice::sendFrame(boolean onlyIfIdle, uint8_t retr
 	 if(!busIsIdle())
 		 return BUS_BUSY;
 	 // set new idle time
-	 minIdleTime = random(DIFS_CONSTANT, DIFS_CONSTANT+DIFS_RANDOM);
+	 minIdleTime = newMinIdleTime();
    }
    
    txLEDStatus = true;
@@ -961,7 +961,7 @@ void HBWDevice::handleDiscoveryFrame(uint8_t ctrlByte, uint32_t prefix) {
       digitalWrite(txEnablePin, LOW);
       
       // Update lastReceivedTime to avoid false "bus idle" detection
-      lastReceivedTime = millis();
+      // lastReceivedTime = millis();
       
      #ifdef HBW_DEBUG
       hbwdebug(F("DISC MATCH vb="));
@@ -1021,6 +1021,12 @@ boolean HBWDevice::busIsIdle()
   return (millis() - lastReceivedTime > minIdleTime);
 }
 
+// calculate new minIdleTime
+uint16_t HBWDevice::newMinIdleTime()
+{
+  return (uint16_t)(random(DIFS_CONSTANT, DIFS_CONSTANT+DIFS_RANDOM));
+}
+
 /*
 ********************************
 ** DEBUG
@@ -1056,15 +1062,15 @@ HBWDevice::HBWDevice(uint8_t _devicetype, uint8_t _hardware_version, uint16_t _f
    digitalWrite(txEnablePin, LOW);
    frameComplete = false;
    lastReceivedTime = 0;
-   minIdleTime = DIFS_CONSTANT;  // changes in setOwnAddress
+   minIdleTime = newMinIdleTime();  // changes in setOwnAddress again...
    ledPin = NOT_A_PIN;     // inactive by default
+   configPin = NOT_A_PIN;  //inactive by default
    txLedPin = NOT_A_PIN;     // inactive by default
    rxLedPin = NOT_A_PIN;     // inactive by default
    // upper layer
    deviceType = _devicetype;
    hbwdebugstream = _debugstream;    // debug stream, might be NULL
    readAddressFromEEPROM();
-   configPin = NOT_A_PIN;  //inactive by default
    configButtonStatus = 0;
    pendingActions.zeroCommunicationActive = false;	// will be activated by START_ZERO_COMMUNICATION = 'z' command
    pendingActions.readAddress = false;	// set after writing OWN_ADDRESS via 'W' command
