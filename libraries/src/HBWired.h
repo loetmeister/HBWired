@@ -196,7 +196,6 @@ class HBWDevice {
 
     void handleBroadcastAnnounce();
     void handleAfterReadConfig();
-    void handleReadAddress();
 	
 	// NEU (OpenCCU-Kompatibilitaet): Discovery-Binary-Search Handler
 	void handleDiscoveryFrame(uint8_t ctrlByte, uint32_t prefix);

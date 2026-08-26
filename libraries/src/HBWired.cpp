@@ -505,7 +505,8 @@ void HBWDevice::processEvent(byte const * const frameData, byte frameDataLength,
         	   writeEEPROM(E2END - 3 + i, frameData[i + 2], true);
         	 }
            }
-           pendingActions.readAddress = true;
+           pendingActions.readAddress = true;  // Teil von handleAfterReadConfig(), daher auch afterReadConfig = true
+           pendingActions.afterReadConfig = true;
            break;
          #if defined (Support_ModuleReset)
          case '!':                                                             // reset the Module
@@ -559,10 +560,16 @@ void HBWDevice::processEvent(byte const * const frameData, byte frameDataLength,
                   Nutzdaten ist es kein Parameter-, sondern ein Blockschreibzugriff. Zusaetzlich gilt
                   0xFF in allen Adressbytes als Loeschen -- als Adresse ist das ohnehin ungueltig. */
                bool ownAddressWritable = false;
-               if(frameData[3] < 10) {
+               // if(frameData[3] < 10) {
+               // if(frameDataLength == 8 && adrStart >= E2END - 4) {
+               if(frameDataLength < 10 && adrStart >= E2END - 4) {
                  for(byte i = 4; i < frameDataLength; i++) {
-                   if((adrStart+i-4 > E2END - 4) && frameData[i] != 0xFF) {
+                   // if((adrStart+i-4 > E2END - 4) && frameData[i] != 0xFF) {
+                   if(frameData[i] != 0xFF) {
                      ownAddressWritable = true;
+					 // hbwdebug(F("frameDataLen: ")); hbwdebug(frameDataLength);
+					 // hbwdebug(F(" adrStart: ")); hbwdebug(adrStart);
+					 // hbwdebug(F("\n"));
                      break;
                    }
                  }
@@ -570,9 +577,9 @@ void HBWDevice::processEvent(byte const * const frameData, byte frameDataLength,
                for(byte i = 4; i < frameDataLength; i++){
                  writeEEPROM(adrStart+i-4, frameData[i], ownAddressWritable);
                }
-               /* ACK mit alter Quelladresse senden. handleReadAddress() im loop() übernimmt
-               die neue Adresse -- kein Neustart noetig. */
-               pendingActions.readAddress = ownAddressWritable;
+               /* Erst 'C' / readConfig(), nach Beendigung aller EEPROM write, uebernimmt
+                  im loop() die neue Adresse per handleAfterReadConfig() -- kein Neustart noetig. */
+               if (!pendingActions.readAddress) pendingActions.readAddress = ownAddressWritable;
             };
             break;
          /* case 'c':                                                               // Zieladresse löschen?
@@ -978,22 +985,16 @@ void HBWDevice::handleDiscoveryFrame(uint8_t ctrlByte, uint32_t prefix) {
 }
 
 
-/* eigene Busadresse uebernehmen, nachdem sie per 'W' geschrieben wurde. Erst hier und nicht
-   direkt im Handler, damit das ACK auf den Schreibzugriff noch mit der alten Quelladresse
-   rausgeht. setOwnAddress() setzt 'announced' zurueck, das Geraet meldet sich also von selbst
-   unter der neuen Adresse -- ein Neustart ist nicht noetig. */
-void HBWDevice::handleReadAddress() {
-  if (pendingActions.readAddress) {
-    readAddressFromEEPROM();
-    pendingActions.readAddress = false;
-  }
-  return;
-}
-
-
 // read device and channel config, on init and if triggered by ReadConfig()
 void HBWDevice::handleAfterReadConfig() {
   if (pendingActions.afterReadConfig) {
+    if (pendingActions.readAddress) {
+   /* neue Busadresse uebernehmen, nachdem sie per 'W' (write EEPROM) geschrieben wurde. Erst hier und
+      nicht im Handler, um ACK und weitere folgende 'W' und 'C' Befehle mit der alten Adresse abzuschließen */
+      readAddressFromEEPROM();
+      pendingActions.readAddress = false;
+      hbwdebug(F("Applied new Addr\n"));
+    }
     afterReadConfig();
     for(uint8_t i = 0; i < numChannels; i++) {
       channels[i]->afterReadConfig();
@@ -1147,13 +1148,12 @@ uint8_t HBWDevice::get(uint8_t channel, uint8_t* data) {  // returns length
 // The loop function is called in an endless loop
 void HBWDevice::loop()
 {
-  handleReadAddress();
   handleAfterReadConfig();
+  #ifdef Support_WDT
+  RESET_WATCHDOG();
+  #endif
   for (uint8_t loopCurrentChannel = 0; loopCurrentChannel < numChannels; loopCurrentChannel++)
   {
-   #ifdef Support_WDT
-   RESET_WATCHDOG();
-   #endif
   // Daten empfangen und alles, was zur Kommunikationsschicht gehört
   // processEvent vom Modul wird als Callback aufgerufen
   // Daten empfangen (tut nichts, wenn keine Daten vorhanden)
