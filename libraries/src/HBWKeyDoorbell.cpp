@@ -19,6 +19,7 @@ HBWKeyDoorbell::HBWKeyDoorbell(uint8_t _pin, hbw_config_key_doorbell* _config, u
   keyPressedMillis = 0;
   keyPressNum = 0;
   repeatCounter = 0;
+  keySendFailed = keySend::NOT_YET;
 };
 
 // special channel type - to refer HBWPhoneDial channel
@@ -27,6 +28,7 @@ HBWKeyDoorbell::HBWKeyDoorbell(uint8_t _pin, hbw_config_key_doorbell* _config, H
   keyPressedMillis = 0;
   keyPressNum = 0;
   repeatCounter = 0;
+  keySendFailed = keySend::NOT_YET;
   pin = _pin;
   config = _config;
   phoneDialChan = _phone_dial_chan;
@@ -68,6 +70,16 @@ void HBWKeyDoorbell::loop(HBWDevice* device, uint8_t channel)
   if (repeatCounter != 0 && lastSentLong == 0 && (now - lastKeyPressedMillis >= (uint32_t)config->suppress_time *1000)) {
     repeatCounter = 0;  // reset repeat counter when suppress time has passed and no buttons are pressed anymore
   }
+  
+  // one send retry
+  if (keySendFailed < keySend::NOT_YET && (now - lastKeyPressedMillis >= KEY_SEND_RETRY_TIME)) {
+    keyPressNum++;
+    hbwdebug(F("keySend retry!\n"));
+    if (device->sendKeyEvent(channel, keyPressNum, keySendFailed) != HBWDevice::BUS_BUSY) {
+      keySendSuccessActions(device, channel);
+    }
+    keySendFailed = keySend::NOT_YET;
+  }
 
  // sends short KeyEvent on short press and (repeated) long KeyEvent on long press
   if (buttonState) {
@@ -82,11 +94,15 @@ void HBWKeyDoorbell::loop(HBWDevice* device, uint8_t channel)
         if (repeatCounter == 0)
         {
           keyPressNum++;
-          if (device->sendKeyEvent(channel, keyPressNum, false) != HBWDevice::BUS_BUSY) // TODO: should add retry?
+          if (device->sendKeyEvent(channel, keyPressNum, false) != HBWDevice::BUS_BUSY)
           {
-            repeatCounter = config->suppress_num;
-            buzzer(buzzerAction::SUCCESS, true);
-            phoneDialChan->DialNumber(channel);
+            // repeatCounter = config->suppress_num;
+            // buzzer(buzzerAction::SUCCESS, true);
+            // phoneDialChan->DialNumber(channel);
+            keySendSuccessActions(device, channel);
+          }
+          else {
+            keySendFailed = keySend::AT_SHORT_PRESS;
           }
         }
         else {
@@ -117,12 +133,16 @@ void HBWKeyDoorbell::loop(HBWDevice* device, uint8_t channel)
         if (repeatCounter == 0) {
           // erstes LONG
           keyPressNum++;
-          if (device->sendKeyEvent(channel, keyPressNum, true) != HBWDevice::BUS_BUSY)  // long press // TODO: should add retry?
+          if (device->sendKeyEvent(channel, keyPressNum, true) != HBWDevice::BUS_BUSY)  // long press
           {
             lastSentLong = now;
-            repeatCounter = config->suppress_num;
-            buzzer(buzzerAction::SUCCESS);
-            phoneDialChan->DialNumber(channel);
+            // repeatCounter = config->suppress_num;
+            // buzzer(buzzerAction::SUCCESS);
+            // phoneDialChan->DialNumber(channel);
+            keySendSuccessActions(device, channel);
+          }
+          else {
+            keySendFailed = keySend::AT_LONG_PRESS;
           }
         }
       }
@@ -132,10 +152,19 @@ void HBWKeyDoorbell::loop(HBWDevice* device, uint8_t channel)
       keyPressedMillis = now;
       lastKeyPressedMillis = now;
       lastSentLong = 0;
+      keySendFailed = keySend::NOT_YET;
     }
   }
   
   buzzer(buzzerAction::PLAY);
+};
+
+
+void HBWKeyDoorbell::keySendSuccessActions(HBWDevice* device, uint8_t channel)
+{
+  repeatCounter = config->suppress_num;
+  buzzer(buzzerAction::SUCCESS, true);
+  phoneDialChan->DialNumber(channel);
 };
 
 

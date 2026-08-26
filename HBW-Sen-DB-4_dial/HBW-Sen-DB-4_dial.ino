@@ -9,14 +9,21 @@
 // 
 // http://loetmeister.de/Elektronik/homematic/index.htm#modules
 //
+// to restart module, send "!!" (raw hexstring 2121)
+//
 //*******************************************************************
 // Changes
 // v0.5
 // - new variant with phone dial module
 // - added set and get for phone dial channel
+// v0.6
+// - added start bootloader (u) command
+// - added discovery
+// - added resend for HBWKeyDoorbell
+
 
 #define HARDWARE_VERSION 0x02
-#define FIRMWARE_VERSION 0x0036
+#define FIRMWARE_VERSION 0x003C
 #define HMW_DEVICETYPE 0x98 //device ID (make sure to import hbw-dis-key-4.xml into FHEM)
 
 
