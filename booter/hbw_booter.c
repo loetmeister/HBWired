@@ -39,7 +39,11 @@
                                         Geraet OHNE laufende App abgefragt wird; die App meldet sonst ihren
                                         eigenen Typ. Fuers Flashen (Adresse kommt aus dem EEPROM) egal. */
 #define HW_VERSION   0x00
-#define FW_VERSION   0x0004          /* Booter-eigene Version, gemeldet bei 'v'. 0x0004: optionaler Konfig Taster (USE_BUTTON = 1) */
+#define FW_VERSION   0x0005          /* Booter-eigene Version, gemeldet bei 'v'.
+                                        0x0003: RAM-Marker (bootmagic.h)
+                                        0x0004: optionaler Konfig Taster (USE_BUTTON = 1)
+                                        0x0005: hasSender aus Bit 3 ALLEIN -> protokollkonform wie der eq3-Booter,
+                                                Voraussetzung fuer den CCU-/hs485d-Weg (CTRL_BOOT_IFRAME 0x10 ohne Sender) */
 #define FALLBACK_ADDR 0x42FFFFFFUL   /* falls EEPROM-Adresse leer (0xFFFFFFFF) */
 
 /* Inaktivitaets-Timeout: nach IDLE_TIMEOUT_OVF Timer1-Ueberlaeufen (je ~4,19 s
@@ -303,13 +307,25 @@ static uint8_t rxByte(uint8_t b){
     crc16Shift(b,&rxCrc);
     if(rxIdx<RX_BUFSIZE) rxb[rxIdx]=b;
     if(rxIdx==4){
-      /* hasSender-Erkennung: An einen BOOTER setzt die CCU/hs485d teils nur Bit 4 (0x10)
-         statt Bit 3 (0x08) -- z.B. control 0x12/0x16 statt 0x18. Beide FUEHREN eine
-         Senderadresse (per CRC am echten Bus belegt). Daher Bit 3 ODER Bit 4 werten,
-         ausser bei Discovery (Bits 1,0 = 0b11, dort ist Bit 3 kein Sender-Flag). Der
-         CRC-Check am Frame-Ende faengt eine falsche Annahme ab -> Frame wird verworfen. */
+      /* hasSender-Erkennung: ALLEIN Bit 3 (0x08) -- ausser bei Discovery (Bits 1,0 = 0b11,
+         dort ist Bit 3 kein Sender-Flag). Das ist die Protokollregel, wie sie auch
+         hmw_protocol.py::has_sender_flag und der eq3-Originalbooter anwenden.
+
+         FRUEHER stand hier `((c & 0x18) != 0 && ...)`, wertete also Bit 3 ODER Bit 4, mit der
+         Begruendung, die CCU spreche einen Booter mit 0x12/0x14/0x16 an und diese Frames
+         "FUEHREN eine Senderadresse (per CRC am echten Bus belegt)". Das war ein ZIRKELSCHLUSS:
+         Die Senderadresse steckte nur drin, weil unser eigenes Gateway sie faelschlich an JEDES
+         Frame haengte (hmw_lgw.h::embeddedToBus rief buildFrame ohne den hasSender-Parameter,
+         Default true) -- und die CRC stimmte, weil das Gateway das Frame in sich konsistent
+         baute; nur passte es nicht zum Control-Byte.
+         hs485d spricht den Bootloader mit CTRL_BOOT_IFRAME = 0x10 an (OpenCCU-Base
+         src/hs485d/HS485Frame.h), die App mit CTRL_IFRAME = 0x18. Bei 0x10 ist Bit 3 NICHT
+         gesetzt -> das Frame traegt KEINE Senderadresse. Der eq3-Originalbooter verwarf unsere
+         widerspruechlichen Frames folgerichtig; mit dem Gateway-Fix (v1.3.8-pre.1) antwortet er.
+         Diese Regel macht unseren Booter dazu passend: fSender ist dann 0, und die Antwort geht
+         -- wie beim eq3-Booter am Bus beobachtet -- an 0x00000000. */
       uint8_t c=b;
-      rxHasSender=((c & 0x18)!=0 && (c & 0x03)!=0x03) ? 1 : 0;
+      rxHasSender=((c & 0x08)!=0 && (c & 0x03)!=0x03) ? 1 : 0;
       rxHeaderLen=rxHasSender?10:6;
     }
     if(rxHeaderLen && rxIdx==(rxHeaderLen-1)) rxTotal=rxHeaderLen+b;
