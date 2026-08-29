@@ -21,10 +21,13 @@
 // - state flag added
 // v1.1
 // - internal rework of state engine (using https://github.com/pa-pa/AskSinPP)
+// v1.2
+// - added start bootloader (u) command
+// - added discovery
 
 
 #define HARDWARE_VERSION 0x01
-#define FIRMWARE_VERSION 0x0073
+#define FIRMWARE_VERSION 0x0078
 #define HMW_DEVICETYPE 0x83
 
 #define NUM_CHANNELS 8

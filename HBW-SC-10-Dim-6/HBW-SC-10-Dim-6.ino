@@ -30,13 +30,15 @@
 // - HBWDimmerAdvanced/HBWLinkDimmerAdvanced BREAKING CHANGE: aligned peering parameter (jump table at the very end) - same as switchAdv.
 //   Saves RAM, but requires updating (or recreation) all DIMMER & vDim peerings
 // - OnLevelPrio correctly only retains on level, not onTime anymore (time validated to minimal / absolute as usual)
-
+// v0.9
+// - added start bootloader (u) command
+// - added discovery
 
 // TODO: RAM usage is high... with the current amount of channels, no additional features possible - like HBWKeyVirtual (use larger microcontroller...)
 
 
 #define HARDWARE_VERSION 0x01
-#define FIRMWARE_VERSION 0x0053
+#define FIRMWARE_VERSION 0x005A
 #define HMW_DEVICETYPE 0x96 //device ID (make sure to import hbw_io-10_dim-6.xml into FHEM)
 
 #define NUMBER_OF_INPUT_CHAN 10   // input channel - pushbutton, key, other digital in

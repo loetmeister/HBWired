@@ -188,7 +188,7 @@ int16_t HBWOneWireTemp::oneWireReadTemp() {
 			raw = (raw & 0xFFF0) + 12 - data[6];
 		}
 	}
-	else {	// DS18B20 or DS1822
+	else {	// DS18B20, DS1822 or DS1825 - all use the resolution bits in the config register
 		uint8_t cfg = (data[4] & 0x60);
 		// at lower res, the low bits are undefined, so let's zero them
 		if (cfg == 0x00) raw = raw & ~7;  // 9 bit resolution, 93.75 ms
@@ -275,5 +275,6 @@ uint8_t HBWOneWireTemp::get(uint8_t* data) {
 
 /* validate device ID (first byte of device address) */
 bool HBWOneWireTemp::deviceInvalidOrEmptyID(uint8_t deviceType) {
-  return !((deviceType == DS18B20_ID) || (deviceType == DS18S20_ID) || (deviceType == DS1822_ID));
+  return !((deviceType == DS18B20_ID) || (deviceType == DS18S20_ID) || (deviceType == DS1822_ID) ||
+           (deviceType == DS1825_ID));
 };

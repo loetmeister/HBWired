@@ -74,8 +74,17 @@ class HBWKeyDoorbell : public HBWChannel {
     uint32_t lastKeyPressedMillis;  // last press of any key
     bool activeHigh;    // activeHigh=true -> input active high, else active low
     HBWPhoneDial_Base* phoneDialChan;
+    uint8_t keySendFailed;
+	void keySendSuccessActions(HBWDevice*, uint8_t channel);
 
     static const uint32_t KEY_DEBOUNCE_TIME = 85;  // ms
+    static const uint32_t KEY_SEND_RETRY_TIME = 380;  // ms (retry to send key event, not sooner than this) should be minIdleTime or more, i.e. 310 ms or more
+
+    enum keySend {
+      AT_SHORT_PRESS = 0,
+      AT_LONG_PRESS = 1,
+      NOT_YET
+    };
 
     enum buzzerAction {
       BLOCKED = 0,  // must match with melody array index for the 'fail/ok' field (0/1)

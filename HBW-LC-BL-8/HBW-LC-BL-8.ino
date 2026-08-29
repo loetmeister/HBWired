@@ -36,10 +36,13 @@
 // - Fixed/switched UP/DOWN (UP=100%)
 // v0.7
 // - fixed overflow of runtime occuring over 32.8 seconds
+// v0.8
+// - added start bootloader (u) command
+// - added discovery
 
 
 #define HARDWARE_VERSION 0x01
-#define FIRMWARE_VERSION 0x0049
+#define FIRMWARE_VERSION 0x0050
 #define HMW_DEVICETYPE 0x92 //BL8 device (make sure to import hbw_lc_bl-8.xml into FHEM)
 
 #define NUMBER_OF_BLINDS 8

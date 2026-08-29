@@ -7,7 +7,7 @@
  *
  *  HomeBrew-Wired RS485-Protokoll 
  *
- * Last updated: 20.08.2026
+ * Last updated: 29.08.2026
  */
 
 #include "HBWired.h"
@@ -20,8 +20,14 @@
  * '!!'-Reset / App-Restart / Watchdog-Hang sofort in die App (loest die WDRF-Mehrdeutigkeit).
  * Die App braucht dafuer KEINEN Linker-Flag -- Details in bootmagic.h. */
 #define BOOT_MAGIC_VAL   0xB007DA7AUL
+#if defined (RAMEND)
 #define BOOT_MAGIC_CELL  (*(volatile uint32_t*)(RAMEND-3))
-// TODO, include bootmagic.h instead of defines
+#elif defined (SRAM_END)
+#define BOOT_MAGIC_CELL  (*(volatile uint32_t*)(SRAM_END-3))
+#else
+#warning Start bootloader will probably not work! Check your bootloader design...
+#endif
+
 
 // bus must be idle 210 + rand(0..100) ms
 #define DIFS_CONSTANT 210
@@ -53,7 +59,7 @@ uint8_t HBWDevice::configButtonStatus;
 void HBWDevice::setOwnAddress(uint32_t address) {
   ownAddress = address;
   randomSeed(ownAddress);
-  minIdleTime = random(DIFS_CONSTANT, DIFS_CONSTANT+DIFS_RANDOM);
+  minIdleTime = newMinIdleTime();
   pendingActions.announced = false;	// (re)send broadcast announce message
 }
 
@@ -117,7 +123,7 @@ HBWDevice::sendFrameStatus HBWDevice::sendFrame(boolean onlyIfIdle, uint8_t retr
 	 if(!busIsIdle())
 		 return BUS_BUSY;
 	 // set new idle time
-	 minIdleTime = random(DIFS_CONSTANT, DIFS_CONSTANT+DIFS_RANDOM);
+	 minIdleTime = newMinIdleTime();
    }
    
    txLEDStatus = true;
@@ -481,7 +487,9 @@ void HBWDevice::processEvent(byte const * const frameData, byte frameDataLength,
             case 'u':                                                              // Update (Bootloader starten)
                hbwdebug(F("C: Start booter\n"));
                // der HBW-Booter erkennt WDRF + BOOT_MAGIC_VAL und bleibt im Update-Modus
+               #ifdef BOOT_MAGIC_CELL
                BOOT_MAGIC_CELL = BOOT_MAGIC_VAL;   // nur HIER gesetzt: hebt 'u' von '!!'/Restart ab
+               #endif
                restartDevice(onlyAck);
                break;
          }
@@ -505,7 +513,8 @@ void HBWDevice::processEvent(byte const * const frameData, byte frameDataLength,
         	   writeEEPROM(E2END - 3 + i, frameData[i + 2], true);
         	 }
            }
-           pendingActions.readAddress = true;
+           pendingActions.readAddress = true;  // Teil von handleAfterReadConfig(), daher auch afterReadConfig = true
+           pendingActions.afterReadConfig = true;
            break;
          #if defined (Support_ModuleReset)
          case '!':                                                             // reset the Module
@@ -522,8 +531,8 @@ void HBWDevice::processEvent(byte const * const frameData, byte frameDataLength,
         	readConfig();    // also calls back to device
             break;
          case 'E':                           // see separate docs
-        	onlyAck = false;
-        	processEmessage(frameData);
+            // blocknum == 0 liefert keine e-Antwort, dann nur ACK
+            onlyAck = processEmessage(frameData);
             break;
          case 'K':                           // 0x4B Key-Event
          case 0xCB:   // '╦':       // Key-Sim-Event TODO: Es gibt da einen theoretischen Unterschied
@@ -559,10 +568,16 @@ void HBWDevice::processEvent(byte const * const frameData, byte frameDataLength,
                   Nutzdaten ist es kein Parameter-, sondern ein Blockschreibzugriff. Zusaetzlich gilt
                   0xFF in allen Adressbytes als Loeschen -- als Adresse ist das ohnehin ungueltig. */
                bool ownAddressWritable = false;
-               if(frameData[3] < 10) {
+               // if(frameData[3] < 10) {
+               // if(frameDataLength == 8 && adrStart >= E2END - 4) {
+               if(frameDataLength < 10 && adrStart >= E2END - 4) {
                  for(byte i = 4; i < frameDataLength; i++) {
-                   if((adrStart+i-4 > E2END - 4) && frameData[i] != 0xFF) {
+                   // if((adrStart+i-4 > E2END - 4) && frameData[i] != 0xFF) {
+                   if(frameData[i] != 0xFF) {
                      ownAddressWritable = true;
+					 // hbwdebug(F("frameDataLen: ")); hbwdebug(frameDataLength);
+					 // hbwdebug(F(" adrStart: ")); hbwdebug(adrStart);
+					 // hbwdebug(F("\n"));
                      break;
                    }
                  }
@@ -570,9 +585,9 @@ void HBWDevice::processEvent(byte const * const frameData, byte frameDataLength,
                for(byte i = 4; i < frameDataLength; i++){
                  writeEEPROM(adrStart+i-4, frameData[i], ownAddressWritable);
                }
-               /* ACK mit alter Quelladresse senden. handleReadAddress() im loop() übernimmt
-               die neue Adresse -- kein Neustart noetig. */
-               pendingActions.readAddress = ownAddressWritable;
+               /* Erst 'C' / readConfig(), nach Beendigung aller EEPROM write, uebernimmt
+                  im loop() die neue Adresse per handleAfterReadConfig() -- kein Neustart noetig. */
+               if (!pendingActions.readAddress) pendingActions.readAddress = ownAddressWritable;
             };
             break;
          /* case 'c':                                                               // Zieladresse löschen?
@@ -672,11 +687,26 @@ void HBWDevice::processEventSetLock(uint8_t channel, boolean inhibit){
 };
 
 
-void HBWDevice::processEmessage(uint8_t const * const frameData) {
+bool HBWDevice::processEmessage(uint8_t const * const frameData) {
    // process E-Message
    
    uint8_t blocksize = frameData[3];
    uint8_t blocknum  = frameData[4];
+
+   /* blocknum ist die ANZAHL der Bloecke, nicht der Index des letzten.
+      Am Original mitgeschnitten (eQ-3 HMW-IO-12-SW14-DR, MEQ0229855,
+      21.08.2026, ueber ein HMW-LGW): "E 00 00 04 01" liefert die Bitmap
+      0x01 -- es wird also nur Block 0 gemeldet, obwohl Block 1 (EEPROM
+      0x04..0x07) belegt ist. Bei blocknum = 0 antwortet das Original gar
+      nicht, sondern schickt nur ein ACK.
+      Gemessene Antwortlaengen (blocksize/blocknum -> Bytes):
+        4/1 -> 5   4/7 -> 5   4/8 -> 5   8/15 -> 6
+        4/63 -> 12   4/64 -> 12   1/255 -> 36
+      Die Laengenformel unten trifft das bereits. */
+   if(blocknum == 0) {
+   // bei blocknum == 0 keine e-Antwort, nur ACK
+     return true;
+   };
    
    // length of response
    txFrame.dataLength = 4 + blocknum / 8;
@@ -693,8 +723,12 @@ void HBWDevice::processEmessage(uint8_t const * const frameData) {
    txFrame.data[2]  = frameData[2];
    txFrame.data[3]  = frameData[3];
    
-   // determine whether blocks are used
-   for(int block = 0; block <= blocknum; block++) {
+   /* determine whether blocks are used
+      "< blocknum", nicht "<= blocknum": sonst wird ein Block zu viel
+      geprueft, und bei einer durch 8 teilbaren Blockzahl schreibt bitSet()
+      hinter das Ende der Bitmap -- z.B. blocknum = 8 ergibt dataLength 5,
+      aber data[4 + 8/8] waere data[5]. */
+   for(int block = 0; block < blocknum; block++) {
       // check this memory block
       for(int byteIdx = 0; byteIdx < blocksize; byteIdx++) {
          if(EepromPtr->read(block * blocksize + byteIdx) != 0xFF) {
@@ -703,6 +737,7 @@ void HBWDevice::processEmessage(uint8_t const * const frameData) {
          }
       }
    };
+   return false;
 };
 
 
@@ -941,7 +976,7 @@ void HBWDevice::handleDiscoveryFrame(uint8_t ctrlByte, uint32_t prefix) {
       digitalWrite(txEnablePin, LOW);
       
       // Update lastReceivedTime to avoid false "bus idle" detection
-      lastReceivedTime = millis();
+      // lastReceivedTime = millis();
       
      #ifdef HBW_DEBUG
       hbwdebug(F("DISC MATCH vb="));
@@ -958,22 +993,16 @@ void HBWDevice::handleDiscoveryFrame(uint8_t ctrlByte, uint32_t prefix) {
 }
 
 
-/* eigene Busadresse uebernehmen, nachdem sie per 'W' geschrieben wurde. Erst hier und nicht
-   direkt im Handler, damit das ACK auf den Schreibzugriff noch mit der alten Quelladresse
-   rausgeht. setOwnAddress() setzt 'announced' zurueck, das Geraet meldet sich also von selbst
-   unter der neuen Adresse -- ein Neustart ist nicht noetig. */
-void HBWDevice::handleReadAddress() {
-  if (pendingActions.readAddress) {
-    readAddressFromEEPROM();
-    pendingActions.readAddress = false;
-  }
-  return;
-}
-
-
 // read device and channel config, on init and if triggered by ReadConfig()
 void HBWDevice::handleAfterReadConfig() {
   if (pendingActions.afterReadConfig) {
+    if (pendingActions.readAddress) {
+   /* neue Busadresse uebernehmen, nachdem sie per 'W' (write EEPROM) geschrieben wurde. Erst hier und
+      nicht im Handler, um ACK und weitere folgende 'W' und 'C' Befehle mit der alten Adresse abzuschließen */
+      readAddressFromEEPROM();
+      pendingActions.readAddress = false;
+      hbwdebug(F("Applied new Addr\n"));
+    }
     afterReadConfig();
     for(uint8_t i = 0; i < numChannels; i++) {
       channels[i]->afterReadConfig();
@@ -985,6 +1014,7 @@ void HBWDevice::handleAfterReadConfig() {
 
 
 // perform device reset/restart. Call with _sendAck = true, when in response to a command (like 'u')
+// txFrame.targetAddress must be set before calling sendAck()
 void HBWDevice::restartDevice(bool _sendAck) {
     if (_sendAck) sendAck();
     #if defined (Support_WDT)
@@ -999,6 +1029,12 @@ void HBWDevice::restartDevice(bool _sendAck) {
 boolean HBWDevice::busIsIdle()
 {
   return (millis() - lastReceivedTime > minIdleTime);
+}
+
+// calculate new minIdleTime
+uint16_t HBWDevice::newMinIdleTime()
+{
+  return (uint16_t)(random(DIFS_CONSTANT, DIFS_CONSTANT+DIFS_RANDOM));
 }
 
 /*
@@ -1036,15 +1072,15 @@ HBWDevice::HBWDevice(uint8_t _devicetype, uint8_t _hardware_version, uint16_t _f
    digitalWrite(txEnablePin, LOW);
    frameComplete = false;
    lastReceivedTime = 0;
-   minIdleTime = DIFS_CONSTANT;  // changes in setOwnAddress
+   minIdleTime = newMinIdleTime();  // changes in setOwnAddress again...
    ledPin = NOT_A_PIN;     // inactive by default
+   configPin = NOT_A_PIN;  //inactive by default
    txLedPin = NOT_A_PIN;     // inactive by default
    rxLedPin = NOT_A_PIN;     // inactive by default
    // upper layer
    deviceType = _devicetype;
    hbwdebugstream = _debugstream;    // debug stream, might be NULL
    readAddressFromEEPROM();
-   configPin = NOT_A_PIN;  //inactive by default
    configButtonStatus = 0;
    pendingActions.zeroCommunicationActive = false;	// will be activated by START_ZERO_COMMUNICATION = 'z' command
    pendingActions.readAddress = false;	// set after writing OWN_ADDRESS via 'W' command
@@ -1121,13 +1157,12 @@ uint8_t HBWDevice::get(uint8_t channel, uint8_t* data) {  // returns length
 // The loop function is called in an endless loop
 void HBWDevice::loop()
 {
-  handleReadAddress();
   handleAfterReadConfig();
+  #ifdef Support_WDT
+  RESET_WATCHDOG();
+  #endif
   for (uint8_t loopCurrentChannel = 0; loopCurrentChannel < numChannels; loopCurrentChannel++)
   {
-   #ifdef Support_WDT
-   RESET_WATCHDOG();
-   #endif
   // Daten empfangen und alles, was zur Kommunikationsschicht gehört
   // processEvent vom Modul wird als Callback aufgerufen
   // Daten empfangen (tut nichts, wenn keine Daten vorhanden)

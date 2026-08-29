@@ -21,15 +21,18 @@
 // - optimized conversion and measurement sequence to avoid wrong readings
 // v0.1
 // - added start bootloader (u) command
-// - fix global 1wire variables
+// v0.05
+// - added DS1825 support (see HBWOneWireTempSensors.h)
+// v0.06
+// - fixed OneWire bus arbitration: the channels held pointers to setup() stack
+//   variables, which got overwritten as soon as loop() ran
 
 
 #define HARDWARE_VERSION 0x01
-#define FIRMWARE_VERSION 0x0003
+#define FIRMWARE_VERSION 0x0006
 #define HMW_DEVICETYPE 0x81 //device ID (make sure to import hbw_1w_t10_v1.xml into FHEM)
 
 #define NUMBER_OF_TEMP_CHAN 10   // input channels - 1-wire temperature sensors
-#define ADDRESS_START_CONF_TEMP_CHAN 0x7  // first EEPROM address for temperature sensors configuration
 //#define NUM_LINKS_TEMP 30    // requires Support_HBWLink_InfoEvent in HBWired.h
 #define LINKADDRESSSTART_TEMP 0xE6   // step 6
 
@@ -91,7 +94,12 @@ class HBTempOWDevice : public HBWDevice {
 // device specific defaults
 void HBTempOWDevice::afterReadConfig()
 {
-  HBWOneWireTemp::sensorSearch(d_ow, tempSensorconfig, (uint8_t) NUMBER_OF_TEMP_CHAN, (uint8_t) ADDRESS_START_CONF_TEMP_CHAN);
+  /* sensorSearch() writes the sensor IDs into the EEPROM using ADDRESS_START_CONF_TEMP_CHAN.
+   * That constant must match where TempOWCfg actually sits in the config struct - the struct
+   * is read from EEPROM 0x01, so struct offset 6 equals EEPROM address 0x07. Adding a field
+   * in front of TempOWCfg would silently shift the channel config. */
+  static const uint8_t ADDRESS_START_CONF_TEMP_CHAN = offsetof(hbw_config, TempOWCfg) +1;  // first EEPROM address for temperature sensors configuration
+  HBWOneWireTemp::sensorSearch(d_ow, tempSensorconfig, (uint8_t) NUMBER_OF_TEMP_CHAN, ADDRESS_START_CONF_TEMP_CHAN);
 };
 
 HBTempOWDevice* device = NULL;

@@ -13,6 +13,8 @@ Unterstützte 1-Wire® Temperatursensoren:
 DS18S20 Gerätecode 0x10
 DS18B20 Gerätecode 0x28
 DS1822  Gerätecode 0x22
+DS1825  Gerätecode 0x3B
+
 
 Direktes Peering:
 Die internen 'tempsensor' Kanäle können mit 'delta_t1' / 'delta_t2' verknüpft werden oder anderen externen 'tempsensor' Kanälen um einen Temperaturwert zur Steuerung zu erhalten. (delta_t1/delta_t2 sollte jeweils nur ein Temperatursensor zugewiesen werden!)

@@ -1,7 +1,7 @@
 /* Default / example configuation file. When using custom device config (pinout, EEPROM, etc.) or controller,
  * copy this file and adjust it. This would also avoid to owerwrite it with new versions from GitHub. */
 
-// Arduino NANO / ATMega 328p config - RS485 bus is attached to SoftwareSerial by default, UART0 is used for serial debug.
+// Raspberry Pi Pico config - RS485 bus is attached to UART1. UART0 is used for serial debug.
 
 #include <HBW_eeprom.h>
 #include <FreeRam.h>

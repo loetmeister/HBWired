@@ -26,10 +26,13 @@
 // - state flag added
 // v0.5
 // - internal rework of state engine (using updated HBWSwitchAdvanced class)
+// v0.6
+// - added start bootloader (u) command
+// - added discovery
 
 
 #define HARDWARE_VERSION 0x01
-#define FIRMWARE_VERSION 0x0038
+#define FIRMWARE_VERSION 0x003C
 #define HMW_DEVICETYPE 0x93
 
 
