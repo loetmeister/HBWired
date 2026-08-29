@@ -7,7 +7,7 @@
  *
  *  HomeBrew-Wired RS485-Protokoll 
  *
- * Last updated: 20.08.2026
+ * Last updated: 29.08.2026
  */
 
 #include "HBWired.h"
@@ -20,7 +20,13 @@
  * '!!'-Reset / App-Restart / Watchdog-Hang sofort in die App (loest die WDRF-Mehrdeutigkeit).
  * Die App braucht dafuer KEINEN Linker-Flag -- Details in bootmagic.h. */
 #define BOOT_MAGIC_VAL   0xB007DA7AUL
+#if defined (RAMEND)
 #define BOOT_MAGIC_CELL  (*(volatile uint32_t*)(RAMEND-3))
+#elif defined (SRAM_END)
+#define BOOT_MAGIC_CELL  (*(volatile uint32_t*)(SRAM_END-3))
+#else
+#warning Start bootloader will probably not work! Check your bootloader design...
+#endif
 
 
 // bus must be idle 210 + rand(0..100) ms
@@ -481,7 +487,9 @@ void HBWDevice::processEvent(byte const * const frameData, byte frameDataLength,
             case 'u':                                                              // Update (Bootloader starten)
                hbwdebug(F("C: Start booter\n"));
                // der HBW-Booter erkennt WDRF + BOOT_MAGIC_VAL und bleibt im Update-Modus
+               #ifdef BOOT_MAGIC_CELL
                BOOT_MAGIC_CELL = BOOT_MAGIC_VAL;   // nur HIER gesetzt: hebt 'u' von '!!'/Restart ab
+               #endif
                restartDevice(onlyAck);
                break;
          }
@@ -1006,6 +1014,7 @@ void HBWDevice::handleAfterReadConfig() {
 
 
 // perform device reset/restart. Call with _sendAck = true, when in response to a command (like 'u')
+// txFrame.targetAddress must be set before calling sendAck()
 void HBWDevice::restartDevice(bool _sendAck) {
     if (_sendAck) sendAck();
     #if defined (Support_WDT)
