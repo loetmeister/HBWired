@@ -31,7 +31,7 @@
 
 
 #define HARDWARE_VERSION 0x02
-#define FIRMWARE_VERSION 0x0033
+#define FIRMWARE_VERSION 0x003C
 #define HMW_DEVICETYPE 0x97 //device ID (make sure to import hbw_cc_vd8.xml into FHEM)
 
 #define NUMBER_OF_PID_CHAN 8   // output channels - PID regulator

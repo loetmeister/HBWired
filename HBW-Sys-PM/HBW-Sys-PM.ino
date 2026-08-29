@@ -12,12 +12,15 @@
 //
 //*******************************************************************
 // Changes
-// v0.1
+// v0.01
 // - initial creation
+// v0.1
+// - added start bootloader (u) command
+// - added discovery
 
 
 #define HARDWARE_VERSION 0x01
-#define FIRMWARE_VERSION 0x0008
+#define FIRMWARE_VERSION 0x000A
 #define HMW_DEVICETYPE 0x8D
 
 #define NUM_SW_CHANNELS 4

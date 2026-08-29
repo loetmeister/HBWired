@@ -22,10 +22,14 @@
 // v0.1
 // - added timeout handling for HBWSIGNALDuino_bresser7in1
 // - fixed storm status (HBWSIGNALDuino_bresser7in1)
+// v0.2
+// - added start bootloader (u) command (but not having Raspberry Pi Pico
+//   bootloader. Will only reboot the device)
+// - added discovery
 
 
 #define HARDWARE_VERSION 0x01
-#define FIRMWARE_VERSION 0x0011
+#define FIRMWARE_VERSION 0x0014
 #define HMW_DEVICETYPE 0x88
 
 #define NUM_CHANNELS 2  // total number of channels

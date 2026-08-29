@@ -15,10 +15,13 @@
 // v1.02
 // - channel invert angepasst um nach einem Device reset (EEPROM 'gelöscht') keine Invertierung zu haben
 // - fix: initConfigPins() in afterReadConfig() geändert.
+// v1.1
+// - added start bootloader (u) command
+// - added discovery
 
 
 #define HARDWARE_VERSION 0x00
-#define FIRMWARE_VERSION 0x0067
+#define FIRMWARE_VERSION 0x006E
 #define HMW_DEVICETYPE 0x83
 
 #define NUM_CHANNELS 8

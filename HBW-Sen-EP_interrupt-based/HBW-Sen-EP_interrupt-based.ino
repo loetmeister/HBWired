@@ -21,10 +21,13 @@
 // - made compatible for ATMEGA 328PB (https://github.com/watterott/Arduino-Boards / https://github.com/MCUdude/MiniCore)
 // v0.3
 // - moved from FALLING to CHANGE pin change interrupt for better debounce handling
+// v0.4
+// - added start bootloader (u) command
+// - added discovery
 
 
 #define HARDWARE_VERSION 0x01
-#define FIRMWARE_VERSION 0x001F
+#define FIRMWARE_VERSION 0x0028
 #define HMW_DEVICETYPE 0x84    //device ID (make sure to import hbw-sen-ep.xml into FHEM)
 
 #define NUMBER_OF_SEN_CHAN 8   // input channels
