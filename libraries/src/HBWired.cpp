@@ -1100,7 +1100,7 @@ void HBWDevice::setConfigPins(uint8_t _configPin, uint8_t _ledPin) {
 	#if (defined(__AVR_ATmega328P__) || defined(__AVR_ATmega328__)) && not (defined(ARDUINO_AVR_ATMEL_ATMEGA328PB_XMINI) || defined(__AVR_ATmega328PB__))
     /* workaround for ATmega328P with analog only A6 and A7 pins, where digitalRead() does not work */
 		if (configPin == A6 || configPin == A7)
-			pinMode(configPin, INPUT);	// no pullup for analog input
+			pinMode(configPin, INPUT);	// no internal pullup for analog input
 		else
 	#endif
 		pinMode(configPin, INPUT_PULLUP);
@@ -1158,11 +1158,11 @@ uint8_t HBWDevice::get(uint8_t channel, uint8_t* data) {  // returns length
 void HBWDevice::loop()
 {
   handleAfterReadConfig();
+  for (uint8_t loopCurrentChannel = 0; loopCurrentChannel < numChannels; loopCurrentChannel++)
+  {
   #ifdef Support_WDT
   RESET_WATCHDOG();
   #endif
-  for (uint8_t loopCurrentChannel = 0; loopCurrentChannel < numChannels; loopCurrentChannel++)
-  {
   // Daten empfangen und alles, was zur Kommunikationsschicht gehört
   // processEvent vom Modul wird als Callback aufgerufen
   // Daten empfangen (tut nichts, wenn keine Daten vorhanden)
