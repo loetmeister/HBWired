@@ -108,7 +108,6 @@ void HBWValve::setNewLevel(HBWDevice* device, uint8_t NewLevel)
   
   if (valveLevel != NewLevel)  // set new state only if different
   {
-    // valveLevel < NewLevel ? stateFlags.element.upDown = 1 : stateFlags.element.upDown = 0;
     valveLevel < NewLevel ? goingUp = 1 : goingUp = 0;
     valveLevel = NewLevel;
     isFirstState = true;

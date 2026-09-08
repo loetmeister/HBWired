@@ -39,6 +39,19 @@ class HBWChannel {
     void setLock(boolean inhibit);
     boolean getLock();
 
+  protected:
+	// struct s_ChannelState
+	// {
+		// uint8_t inhibitActive : 1;
+	// };
+	// s_ChannelState channelState;
+};
+
+class HBWActorChannel : public HBWChannel {
+  public:
+    void setLock(boolean inhibit);
+    boolean getLock();
+
   private:
     boolean inhibitActive = false;  // disables all peerings, if true (only applicable for actor channels)
 

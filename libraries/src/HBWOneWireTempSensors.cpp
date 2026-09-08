@@ -233,7 +233,6 @@ void HBWOneWireTemp::loop(HBWDevice* device, uint8_t channel) {
   }
   
   // check if we have a valid temp
-  // if ((currentTemp == DEFAULT_TEMP) || (currentTemp == ERROR_TEMP && errorWasSend))  return; // send ERROR_TEMP in error state just once
   if ((currentTemp == DEFAULT_TEMP) || (currentTemp == ERROR_TEMP && currentTemp == lastSentTemp))  return; // send ERROR_TEMP in error state just once
 
   // check if some temperatures needed to be send

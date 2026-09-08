@@ -60,7 +60,7 @@ struct hbw_config_valve {
 
 
 // Class HBWVavle
-class HBWValve : public HBWChannel {
+class HBWValve : public HBWActorChannel {
   public:
     HBWValve(uint8_t _pin, hbw_config_valve* _config);
     virtual void loop(HBWDevice*, uint8_t channel);

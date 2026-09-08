@@ -7,7 +7,7 @@
 
 EEPROMClass* EepromPtr = &EEPROM;  // use internal EEPROM
 
-#define USE_HARDWARE_SERIAL   // use hardware serial (USART) for final device - this disables debug output
+// #define USE_HARDWARE_SERIAL   // use hardware serial (USART) for final device - this disables debug output
 /* Undefine "HBW_DEBUG" in 'HBWired.h' to remove unneeded code. "HBW_DEBUG" also works as master switch,
  * as hbwdebug() or hbwdebughex() used in channels will point to empty functions. */
 

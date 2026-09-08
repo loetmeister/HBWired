@@ -80,7 +80,7 @@ class HBWDeltaTx : public HBWChannel {
 
 
 // Class HBWDeltaT (output channel, sets output pin or peered external switch)
-class HBWDeltaT : public HBWChannel {
+class HBWDeltaT : public HBWActorChannel {
   public:
     HBWDeltaT(uint8_t _pin, HBWDeltaTx* _delta_t1, HBWDeltaTx* _delta_t2, hbw_config_DeltaT* _config);
     virtual void loop(HBWDevice*, uint8_t channel);
