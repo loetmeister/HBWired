@@ -400,7 +400,7 @@ void HBWChannel::set(HBWDevice* device, uint8_t length, uint8_t const * const da
 uint8_t HBWChannel::get(uint8_t* data) { return 0; };  
 void HBWChannel::loop(HBWDevice* device, uint8_t channel) {};    
 void HBWChannel::afterReadConfig() {};
-void HBWChannel::setLock(boolean inhibit) {};
+void HBWChannel::setLock(boolean) {};
 boolean HBWChannel::getLock() { return false; };
 // inhibit only needed for actor channels
 void HBWActorChannel::setLock(boolean inhibit) { inhibitActive = inhibit; };
@@ -411,7 +411,7 @@ boolean HBWActorChannel::getLock() { return inhibitActive; };
 void HBWActorChannel::setFeedback(HBWDevice* device, boolean loggingEnabled, uint16_t loggingTime) {
   if (!nextFeedbackDelay && loggingEnabled) {
     lastFeedbackTime = millis();
-    nextFeedbackDelay = loggingTime ? loggingTime : device->getLoggingTime() * 100;
+    nextFeedbackDelay = loggingTime ? loggingTime : (uint16_t)device->getLoggingTime() * 100;
   }
 };
 void HBWActorChannel::checkFeedback(HBWDevice* device, uint8_t channel) {
